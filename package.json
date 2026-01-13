@@ -1,0 +1,36 @@
+{
+  "name": "studyhive-backend",
+  "version": "1.0.0",
+  "description": "\"Backend API for collaborative learning platforms featuring JWT authentication, RBAC, assignments, and submissions.\"",
+  "keywords": [
+    "backend",
+    "API",
+    "Project"
+  ],
+  "homepage": "https://github.com/Adi-Dcpp/StudyHive-Backend#readme",
+  "bugs": {
+    "url": "https://github.com/Adi-Dcpp/StudyHive-Backend/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Adi-Dcpp/StudyHive-Backend.git"
+  },
+  "license": "ISC",
+  "author": "Adi-Dcpp",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11",
+    "prettier": "^3.7.4"
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1"
+  }
+}
