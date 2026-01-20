@@ -25,7 +25,7 @@ import {
   resetPasswordValidator,
   changePasswordValidator,
   refreshTokenValidator,
-} from "../validators/index.validators.js";
+} from "../validators/auth.validators.js";
 
 const router = Router();
 

@@ -25,10 +25,12 @@ app.use(
 
 //import Routes
 import authRouter from "./routes/auth.routes.js";
+import groupRouter from "./routes/group.routes.js";
 
 app.use("/api/v1/auth", authRouter);
+app.use("/api/v1/groups", groupRouter);
 
-app.use(globalErrorHandler)
+app.use(globalErrorHandler);
 
 app.get("/", (req, res) => {
   res.send("StudyHive backend running 🚀");
