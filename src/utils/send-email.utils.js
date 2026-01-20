@@ -1,6 +1,6 @@
 import Mailgen from "mailgen";
 import nodemailer from "nodemailer";
-import { ApiError } from "./ApiError.js";
+import { ApiError } from "./api-error.utils.js";
 
 const mailGenerator = new Mailgen({
   theme: "default",
@@ -8,6 +8,11 @@ const mailGenerator = new Mailgen({
     name: "Study Hive",
     link: "https://studyhive.com",
   },
+});
+
+console.log("MAIL ENV CHECK:", {
+  host: process.env.MAILTRAP_SMTP_HOST,
+  port: process.env.MAILTRAP_SMTP_PORT,
 });
 
 const transporter = nodemailer.createTransport({
@@ -22,17 +27,16 @@ const transporter = nodemailer.createTransport({
 
 const sendEmail = async ({ email, subject, mailgenContent }) => {
   try {
-    const emailText = mailGenerator.generatePlainText(mailgenContent);
     const emailHtml = mailGenerator.generate(mailgenContent);
 
     await transporter.sendMail({
       from: `"StudyHive" <${process.env.MAIL_FROM}>`,
       to: email,
       subject,
-      text: emailText,
       html: emailHtml,
     });
   } catch (error) {
+    console.error(error);
     throw new ApiError(500, "Email service failed");
   }
 };

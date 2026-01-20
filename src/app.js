@@ -1,3 +1,4 @@
+import { globalErrorHandler } from "./middlewares/error.middlewares.js";
 import dotenv from "dotenv";
 dotenv.config();
 import express from "express";
@@ -21,6 +22,13 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"],
   }),
 );
+
+//import Routes
+import authRouter from "./routes/auth.routes.js";
+
+app.use("/api/v1/auth", authRouter);
+
+app.use(globalErrorHandler)
 
 app.get("/", (req, res) => {
   res.send("StudyHive backend running 🚀");

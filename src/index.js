@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 dotenv.config();
-import app from "./app.js";
-import connectDB from "./db/index.db.js";
+const { default: app } = await import("./app.js");
+const { default: connectDB } = await import("./db/index.db.js");
 
 const PORT = process.env.PORT || 3000;
 
