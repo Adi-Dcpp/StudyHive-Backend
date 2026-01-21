@@ -120,7 +120,8 @@ const updateGroup = asyncHandler(async (req, res) => {
   const { groupId } = req.params;
   const userId = req.user._id;
   const { newName, newDescription } = req.body;
-  const group = await Group.findById({ _id: groupId });
+
+  const group = await Group.findById(groupId);
 
   if (!group) {
     throw new ApiError(404, "Group not found");
@@ -154,11 +155,21 @@ const updateGroup = asyncHandler(async (req, res) => {
 
 const deleteGroup = asyncHandler(async (req, res) => {
   const { groupId } = req.params;
+  const userId = req.user._id;
 
   const group = await Group.findById(groupId);
 
   if (!group) {
     throw new ApiError(404, "Group not found");
+  }
+
+  const member = await GroupMember.findOne({
+    group: groupId,
+    user: userId,
+  });
+
+  if (!member || member.role !== "mentor") {
+    throw new ApiError(403, "Only mentors can delete the group");
   }
 
   await GroupMember.deleteMany({ group: groupId });
