@@ -3,7 +3,7 @@ import { ApiError } from "../utils/api-error.utils.js";
 import { ApiResponse } from "../utils/api-response.utils.js";
 import { Group } from "../models/group.models.js";
 import { GroupMember } from "../models/groupMember.models.js";
-import { Goal } from "../models/goals.models.js";
+import { Goal } from "../models/goal.models.js";
 
 const createGoal = asyncHandler(async (req, res) => {
   const { groupId } = req.params;

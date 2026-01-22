@@ -6,24 +6,24 @@ import {
   getMyGoals,
   updateGoal,
   deleteGoal,
-} from "../controllers/goals.controllers.js";
+} from "../controllers/goal.controllers.js";
 
 import {
   createGoalValidator,
   updateGoalValidator,
   groupIdParamValidator,
-} from "../validators/goals.validators.js";
+} from "../validators/goal.validators.js";
 
-import { validate } from "../middlewares/validate.middleware.js";
-import { verifyJWT } from "../middlewares/auth.middleware.js";
-import { authorizeRoles } from "../middlewares/role.middleware.js";
+import validate from "../middlewares/validators.middlewares.js";
+import { verifyJwt } from "../middlewares/auth.middlewares.js";
+import { authorizeRoles } from "../middlewares/authorizeRoles.middlewares.js";
 
 const router = Router();
 
 // Learner routes
 router.get(
   "/me",
-  verifyJWT,
+  verifyJwt,
   authorizeRoles("learner"),
   getMyGoals
 );
@@ -31,7 +31,7 @@ router.get(
 //Mentor routes
 router.post(
   "/:groupId",
-  verifyJWT,
+  verifyJwt,
   authorizeRoles("mentor"),
   groupIdParamValidator(),
   createGoalValidator(),
@@ -41,7 +41,7 @@ router.post(
 
 router.get(
   "/:groupId",
-  verifyJWT,
+  verifyJwt,
   authorizeRoles("mentor"),
   groupIdParamValidator(),
   validate,
@@ -50,7 +50,7 @@ router.get(
 
 router.put(
   "/:goalId",
-  verifyJWT,
+  verifyJwt,
   authorizeRoles("mentor"),
   updateGoalValidator(),
   validate,
@@ -59,7 +59,7 @@ router.put(
 
 router.delete(
   "/:goalId",
-  verifyJWT,
+  verifyJwt,
   authorizeRoles("mentor"),
   updateGoalValidator(),
   validate,

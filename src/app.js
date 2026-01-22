@@ -26,7 +26,7 @@ app.use(
 //import Routes
 import authRouter from "./routes/auth.routes.js";
 import groupRouter from "./routes/group.routes.js";
-import goalsRouter from "./routes/goals.routes.js";
+import goalsRouter from "./routes/goal.routes.js";
 
 
 app.use("/api/v1/auth", authRouter);

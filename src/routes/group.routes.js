@@ -11,9 +11,9 @@ import {
   removeGroupMembers,
 } from "../controllers/group.controllers.js";
 
-import { verifyJWT } from "../middlewares/auth.middleware.js";
-import { authorizeRoles } from "../middlewares/authorizeRoles.middleware.js";
-import { validate } from "../middlewares/validator.middleware.js";
+import { verifyJwt } from "../middlewares/auth.middlewares.js";
+import { authorizeRoles } from "../middlewares/authorizeRoles.middlewares.js";
+import validate from "../middlewares/validators.middlewares.js";
 
 import {
   createGroupValidator,
@@ -31,17 +31,17 @@ const router = Router();
 // Public / Authenticated routes
 
 // View all groups user has joined
-router.get("/", verifyJWT, viewAllJoinedGroup);
+router.get("/", verifyJwt, viewAllJoinedGroup);
 
 // Join group via invite code
-router.post("/join", verifyJWT, joinGroupValidator(), validate, joinGroup);
+router.post("/join", verifyJwt, joinGroupValidator(), validate, joinGroup);
 
 // Mentor Only
 
 // Create group
 router.post(
   "/",
-  verifyJWT,
+  verifyJwt,
   authorizeRoles("mentor"),
   createGroupValidator(),
   validate,
@@ -51,7 +51,7 @@ router.post(
 // Update group
 router.put(
   "/:groupId",
-  verifyJWT,
+  verifyJwt,
   authorizeRoles("mentor"),
   updateGroupValidator(),
   validate,
@@ -61,7 +61,7 @@ router.put(
 // Invite members (generate invite code)
 router.post(
   "/:groupId/invite",
-  verifyJWT,
+  verifyJwt,
   authorizeRoles("mentor"),
   inviteMembersValidator(),
   validate,
@@ -71,7 +71,7 @@ router.post(
 // Remove group member
 router.delete(
   "/:groupId/members/:userId",
-  verifyJWT,
+  verifyJwt,
   authorizeRoles("mentor"),
   removeGroupMembersValidator(),
   validate,
@@ -83,7 +83,7 @@ router.delete(
 // View group details
 router.get(
   "/:groupId",
-  verifyJWT,
+  verifyJwt,
   getGroupDetailsValidator(),
   validate,
   getGroupDetails,
@@ -92,7 +92,7 @@ router.get(
 // View group members
 router.get(
   "/:groupId/members",
-  verifyJWT,
+  verifyJwt,
   viewGroupMembersValidator(),
   validate,
   viewGroupMembers,
@@ -103,7 +103,7 @@ router.get(
 // Delete group
 router.delete(
   "/:groupId",
-  verifyJWT,
+  verifyJwt,
   authorizeRoles("admin"),
   deleteGroupValidator(),
   validate,

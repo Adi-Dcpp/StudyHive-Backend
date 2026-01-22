@@ -14,6 +14,7 @@ const createGroup = asyncHandler(async (req, res) => {
     name,
     description,
     inviteCode,
+    mentor: userId,
   });
 
   if (!group) {

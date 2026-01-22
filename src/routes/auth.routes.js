@@ -14,7 +14,6 @@ import {
 
 import { verifyJwt } from "../middlewares/auth.middlewares.js";
 import validate from "../middlewares/validators.middlewares.js";
-import { authorizeRoles } from "../middlewares/authorizeRoles.middleware.js";
 
 import {
   userRegisterValidator,
