@@ -27,11 +27,16 @@ app.use(
 import authRouter from "./routes/auth.routes.js";
 import groupRouter from "./routes/group.routes.js";
 import goalsRouter from "./routes/goal.routes.js";
+import assignmentRouter from "./routes/assignment.routes.js";
+import submissionRouter from "./routes/submission.routes.js";
 
 
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/groups", groupRouter);
 app.use("/api/v1/goals", goalsRouter);
+app.use("/api/v1/assignments", assignmentRouter);
+app.use("/api/v1", submissionRouter);
+
 
 
 app.use(globalErrorHandler);
