@@ -59,12 +59,16 @@ const forgotPasswordValidator = () => [
 ];
 
 const resetPasswordValidator = () => [
-  param("token").exists().withMessage("Token is required"),
-  body("password")
-    .isLength({ min: 8 })
-    .withMessage("Password must be at least 8 characters"),
-];
+  param("token")
+    .exists()
+    .withMessage("Token is required"),
 
+  body("newPassword")
+    .exists()
+    .withMessage("New password is required")
+    .isLength({ min: 8 })
+    .withMessage("New password must be at least 8 characters"),
+];
 const changePasswordValidator = () => {
   return [
     body("oldPassword").exists().notEmpty(),
@@ -73,8 +77,27 @@ const changePasswordValidator = () => {
 };
 
 const refreshTokenValidator = () => {
-  return [cookie("refreshToken").exists().withMessage("Refresh token missing")];
+  return [
+    body("refreshToken")
+      .optional()
+      .isString()
+      .withMessage("Refresh token must be a string"),
+
+    cookie("refreshToken")
+      .optional()
+      .isString()
+      .withMessage("Refresh token must be a string"),
+
+    body()
+      .custom((_, { req }) => {
+        if (!req.cookies?.refreshToken && !req.body?.refreshToken) {
+          throw new Error("Refresh token is required");
+        }
+        return true;
+      }),
+  ];
 };
+
 
 export {
   userRegisterValidator,

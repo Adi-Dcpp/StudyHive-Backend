@@ -35,8 +35,7 @@ app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/groups", groupRouter);
 app.use("/api/v1/goals", goalsRouter);
 app.use("/api/v1/assignments", assignmentRouter);
-app.use("/api/v1", submissionRouter);
-
+app.use("/api/v1/submissions", submissionRouter)
 
 
 app.use(globalErrorHandler);

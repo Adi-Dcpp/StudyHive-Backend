@@ -4,6 +4,7 @@ import { asyncHandler } from "../utils/async-handler.utils.js";
 import { Assignment } from "../models/assignment.models.js";
 import { Group } from "../models/group.models.js";
 import { Submission } from "../models/submission.models.js";
+import { GroupMember } from "../models/groupMember.models.js";
 import { uploadToCloudinary } from "../utils/cloudinary.utils.js";
 
 const submitAssignment = asyncHandler(async (req, res) => {
@@ -21,13 +22,10 @@ const submitAssignment = asyncHandler(async (req, res) => {
     throw new ApiError(403, "Assignment submission deadline has passed");
   }
 
-  const group = await Group.findById(assignment.groupId);
-
-  if (!group) {
-    throw new ApiError(404, "Group not found");
-  }
-
-  const isMember = group.members.some((memberId) => memberId.equals(userId));
+  const isMember = await GroupMember.findOne({
+    group: assignment.groupId,
+    user: userId,
+  });
 
   if (!isMember) {
     throw new ApiError(403, "User not authorized to submit this assignment");

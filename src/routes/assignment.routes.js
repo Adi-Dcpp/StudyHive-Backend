@@ -1,47 +1,57 @@
 import { Router } from "express";
 import {
-  submitAssignment,
-  reviewSubmission,
-  getSubmissionsByAssignment,
-} from "../controllers/submission.controllers.js";
+  createAssignment,
+  getAssignmentsByGoal,
+  updateAssignment,
+  deleteAssignment,
+} from "../controllers/assignment.controllers.js";
+
 import {
-  submitAssignmentValidator,
-  reviewSubmissionValidator,
-  getSubmissionsByAssignmentValidator,
-} from "../validators/submission.validators.js";
-import { upload } from "../middlewares/multer.middlewares.js";
+  createAssignmentValidator,
+  updateAssignmentValidator,
+  deleteAssignmentValidator,
+  getAssignmentsByGoalValidator,
+} from "../validators/assignment.validators.js";
+
+import { verifyJwt } from "../middlewares/auth.middlewares.js";
 import { authorizeRoles } from "../middlewares/authorizeRoles.middlewares.js";
 import validate from "../middlewares/validators.middlewares.js";
-import { verifyJwt } from "../middlewares/auth.middlewares.js";
 
 const router = Router();
 
 router.post(
-  "/assignments/:assignmentId/submit",
-  verifyJwt,
-  authorizeRoles("learner"),
-  upload.single("file"),
-  submitAssignmentValidator,
-  validate,
-  submitAssignment
-);
-
-router.put(
-  "/submissions/:submissionId/review",
+  "/goals/:goalId/assignments",
   verifyJwt,
   authorizeRoles("mentor"),
-  reviewSubmissionValidator,
+  createAssignmentValidator,
   validate,
-  reviewSubmission
+  createAssignment
 );
 
 router.get(
-  "/assignments/:assignmentId/submissions",
+  "/goals/:goalId/assignments",
+  verifyJwt,
+  getAssignmentsByGoalValidator,
+  validate,
+  getAssignmentsByGoal
+);
+
+router.put(
+  "/assignments/:assignmentId",
   verifyJwt,
   authorizeRoles("mentor"),
-  getSubmissionsByAssignmentValidator,
+  updateAssignmentValidator,
   validate,
-  getSubmissionsByAssignment
+  updateAssignment
+);
+
+router.delete(
+  "/assignments/:assignmentId",
+  verifyJwt,
+  authorizeRoles("mentor"),
+  deleteAssignmentValidator,
+  validate,
+  deleteAssignment
 );
 
 export default router;

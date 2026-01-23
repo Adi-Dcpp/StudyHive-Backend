@@ -23,21 +23,23 @@ const createGoal = asyncHandler(async (req, res) => {
   if (!Array.isArray(assignedTo) || assignedTo.length === 0) {
     throw new ApiError(
       400,
-      "At least one valid user must be assigned to the goal"
+      "At least one valid user must be assigned to the goal",
     );
   }
 
-  const groupMembers = await GroupMember.find({ group: groupId }).select("user");
+  const groupMembers = await GroupMember.find({ group: groupId }).select(
+    "user",
+  );
   const memberIds = groupMembers.map((m) => m.user.toString());
 
   const allAssignedAreMembers = assignedTo.every((id) =>
-    memberIds.includes(id.toString())
+    memberIds.includes(id.toString()),
   );
 
   if (!allAssignedAreMembers) {
     throw new ApiError(
       400,
-      "One or more assigned users are not part of this group"
+      "One or more assigned users are not part of this group",
     );
   }
 
@@ -53,7 +55,7 @@ const createGoal = asyncHandler(async (req, res) => {
     new ApiResponse(201, "New goal created successfully", {
       title: goal.title,
       createdBy: goal.createdBy,
-    })
+    }),
   );
 });
 
@@ -67,7 +69,14 @@ const getGoalsByGroup = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Group not found");
   }
 
-  if (!group.mentor.equals(userId)) {
+  const isMentor = group.mentor.equals(userId);
+
+  const isAssignedLearner = await Goal.exists({
+    group: groupId,
+    assignedTo: userId,
+  });
+
+  if (!isMentor && !isAssignedLearner) {
     throw new ApiError(
       403,
       "User is not authorised to view goals of this group",

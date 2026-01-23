@@ -5,10 +5,12 @@ const submissionSchema = new Schema(
     assignmentId: {
       type: Schema.Types.ObjectId,
       ref: "Assignment",
+      required: true,
     },
     userId: {
       type: Schema.Types.ObjectId,
       ref: "User",
+      required: true,
     },
     submittedFile: {
       type: String,

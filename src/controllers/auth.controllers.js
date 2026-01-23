@@ -372,6 +372,10 @@ const resetForgotPassword = asyncHandler(async (req, res) => {
   const { resetToken } = req.params;
   const { newPassword } = req.body;
 
+  if (!newPassword) {
+    throw new ApiError(400, "New password is required");
+  }
+
   const hashedToken = crypto
     .createHash("sha256")
     .update(resetToken)
@@ -401,6 +405,14 @@ const resetForgotPassword = asyncHandler(async (req, res) => {
 const changeCurrentPassword = asyncHandler(async (req, res) => {
   const { oldPassword, newPassword } = req.body;
   const user = await User.findById(req.user._id);
+
+  if (!newPassword) {
+    throw new ApiError(400, "New password is required");
+  }
+
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
 
   const isPasswordValid = await user.isPasswordCorrect(oldPassword);
 
