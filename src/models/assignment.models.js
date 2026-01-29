@@ -51,6 +51,15 @@ const assignmentSchema = new Schema(
   },
 );
 assignmentSchema.index({ goalId: 1, isActive: 1 });
+assignmentSchema.set("toJSON", {
+  transform: function (doc, ret) {
+    ret.assignmentId = ret._id;
+    delete ret._id;
+    delete ret.__v;
+    return ret;
+  },
+});
+
 
 export const Assignment =
   mongoose.models.Assignment || mongoose.model("Assignment", assignmentSchema);

@@ -21,7 +21,7 @@ const resourceSchema = new Schema(
       enum: ["file", "link", "note"],
       required: true,
     },
-    
+
     group: {
       type: Schema.Types.ObjectId,
       ref: "Group",
@@ -41,6 +41,9 @@ const resourceSchema = new Schema(
     },
     fileSize: Number,
     fileName: String,
+    cloudinaryPublicId: {
+      type: String,
+    },
 
     // Link-specific field
     linkUrl: {
@@ -53,20 +56,18 @@ const resourceSchema = new Schema(
   },
 );
 
-resourceSchema.pre("save", function (next) {
+resourceSchema.pre("save", function () {
   if (this.type === "file" && !this.fileUrl) {
-    return next(new Error("fileUrl is required when type is 'file'"));
+    throw new Error("fileUrl is required when type is 'file'");
   }
 
   if (this.type === "link" && !this.linkUrl) {
-    return next(new Error("linkUrl is required when type is 'link'"));
+    throw new Error("linkUrl is required when type is 'link'");
   }
 
   if (this.type === "note" && !this.description) {
-    return next(new Error("description is required when type is 'note'"));
+    throw new Error("description is required when type is 'note'");
   }
-
-  next();
 });
 
 resourceSchema.index({ group: 1, title: 1 }, { unique: true });

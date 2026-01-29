@@ -5,6 +5,7 @@ import { Group } from "../models/group.models.js";
 import { GroupMember } from "../models/groupMember.models.js";
 import { uploadToCloudinary } from "../utils/cloudinary.utils.js";
 import { Resource } from "../models/resource.models.js";
+import { v2 as cloudinary } from "cloudinary";
 
 const uploadResource = asyncHandler(async (req, res) => {
   const { groupId } = req.params;
@@ -25,12 +26,15 @@ const uploadResource = asyncHandler(async (req, res) => {
   }
 
   let fileUrl;
+  let cloudinaryPublicId;
 
   if (type === "file") {
     if (!req.file) {
       throw new ApiError(400, "File is required for file type resource");
     }
-    fileUrl = await uploadToCloudinary(req.file.path);
+    const uploadResult = await uploadToCloudinary(req.file.path);
+    fileUrl = uploadResult.secureUrl;
+    cloudinaryPublicId = uploadResult.publicId;
   }
 
   if (type === "link" && !linkUrl) {
@@ -49,6 +53,7 @@ const uploadResource = asyncHandler(async (req, res) => {
     uploadedBy: userId,
     linkUrl,
     fileUrl,
+    cloudinaryPublicId,
   });
 
   return res.status(201).json(
@@ -101,7 +106,7 @@ const getResourceByGroup = asyncHandler(async (req, res) => {
 
   return res
     .status(200)
-    .json(new ApiResponse(200, resources, "Resources fetched successfully"));
+    .json(new ApiResponse(200, "Resources fetched successfully", resources));
 });
 
 const deleteResource = asyncHandler(async (req, res) => {
@@ -129,6 +134,10 @@ const deleteResource = asyncHandler(async (req, res) => {
 
   if (!isAdmin && !isCreator) {
     throw new ApiError(403, "User not authorized to delete the resource");
+  }
+
+  if (resource.type === "file" && resource.cloudinaryPublicId) {
+    await cloudinary.uploader.destroy(resource.cloudinaryPublicId);
   }
 
   await resource.deleteOne();

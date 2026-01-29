@@ -16,7 +16,10 @@ const uploadToCloudinary = async (localFilePath) => {
 
     fs.unlinkSync(localFilePath);
 
-    return result.secure_url;
+    return {
+      secureUrl: result.secure_url,
+      publicId: result.public_id,
+    };
   } catch (error) {
     if (fs.existsSync(localFilePath)) {
       fs.unlinkSync(localFilePath);

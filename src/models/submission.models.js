@@ -16,6 +16,7 @@ const submissionSchema = new Schema(
       type: String,
       trim: true,
     },
+    cloudinaryPublicId: String,
     submittedText: {
       type: String,
       trim: true,

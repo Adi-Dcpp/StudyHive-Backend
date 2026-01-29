@@ -84,3 +84,12 @@ export const groupIdParamValidator = () => {
       .withMessage("Invalid Group ID"),
   ];
 };
+
+export const goalIdParamValidator = () => [
+  param("goalId")
+    .notEmpty()
+    .withMessage("Goal ID is required")
+    .isMongoId()
+    .withMessage("Invalid Goal ID"),
+];
+

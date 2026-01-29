@@ -11,10 +11,18 @@ const userRegisterValidator = () => {
       .withMessage("Name must me greater or equal to 3 characters"),
     body("password")
       .exists()
-      .withMessage("password is required")
+      .withMessage("Password is required")
       .isLength({ min: 8 })
-      .withMessage("password must be greater or equal to 8 character")
-      .isStrongPassword(),
+      .withMessage("Password must be at least 8 characters")
+      .isStrongPassword({
+        minUppercase: 1,
+        minLowercase: 1,
+        minNumbers: 1,
+        minSymbols: 1,
+      })
+      .withMessage(
+        "Password must contain uppercase, lowercase, number and special character",
+      ),
     body("email")
       .exists()
       .withMessage("Email is required")
@@ -52,27 +60,44 @@ const emailValidator = () => {
 };
 
 const forgotPasswordValidator = () => [
-  body("email")
-    .exists()
-    .isEmail()
-    .withMessage("Valid email is required"),
+  body("email").exists().isEmail().withMessage("Valid email is required"),
 ];
 
 const resetPasswordValidator = () => [
-  param("token")
-    .exists()
-    .withMessage("Token is required"),
+  param("token").exists().withMessage("Token is required"),
 
   body("newPassword")
     .exists()
-    .withMessage("New password is required")
+    .withMessage("Password is required")
     .isLength({ min: 8 })
-    .withMessage("New password must be at least 8 characters"),
+    .withMessage("Password must be at least 8 characters")
+    .isStrongPassword({
+      minUppercase: 1,
+      minLowercase: 1,
+      minNumbers: 1,
+      minSymbols: 1,
+    })
+    .withMessage(
+      "Password must contain uppercase, lowercase, number and special character",
+    ),
 ];
 const changePasswordValidator = () => {
   return [
     body("oldPassword").exists().notEmpty(),
-    body("newPassword").isLength({ min: 8 }),
+    body("newPassword")
+      .exists()
+      .withMessage("Password is required")
+      .isLength({ min: 8 })
+      .withMessage("Password must be at least 8 characters")
+      .isStrongPassword({
+        minUppercase: 1,
+        minLowercase: 1,
+        minNumbers: 1,
+        minSymbols: 1,
+      })
+      .withMessage(
+        "Password must contain uppercase, lowercase, number and special character",
+      ),
   ];
 };
 
@@ -88,16 +113,14 @@ const refreshTokenValidator = () => {
       .isString()
       .withMessage("Refresh token must be a string"),
 
-    body()
-      .custom((_, { req }) => {
-        if (!req.cookies?.refreshToken && !req.body?.refreshToken) {
-          throw new Error("Refresh token is required");
-        }
-        return true;
-      }),
+    body().custom((_, { req }) => {
+      if (!req.cookies?.refreshToken && !req.body?.refreshToken) {
+        throw new Error("Refresh token is required");
+      }
+      return true;
+    }),
   ];
 };
-
 
 export {
   userRegisterValidator,

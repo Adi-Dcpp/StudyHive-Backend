@@ -39,4 +39,13 @@ const goalSchema = new Schema(
   },
 );
 
+goalSchema.set("toJSON", {
+  transform: function (doc, ret) {
+    ret.goalId = ret._id;
+    delete ret._id;
+    delete ret.__v;
+    return ret;
+  },
+});
+
 export const Goal = mongoose.model("Goal", goalSchema);

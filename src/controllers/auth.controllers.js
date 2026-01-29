@@ -369,7 +369,7 @@ const forgotPasswordRequest = asyncHandler(async (req, res) => {
 });
 
 const resetForgotPassword = asyncHandler(async (req, res) => {
-  const { resetToken } = req.params;
+  const { token } = req.params;
   const { newPassword } = req.body;
 
   if (!newPassword) {
@@ -378,7 +378,7 @@ const resetForgotPassword = asyncHandler(async (req, res) => {
 
   const hashedToken = crypto
     .createHash("sha256")
-    .update(resetToken)
+    .update(token)
     .digest("hex");
 
   const user = await User.findOne({
@@ -404,7 +404,7 @@ const resetForgotPassword = asyncHandler(async (req, res) => {
 
 const changeCurrentPassword = asyncHandler(async (req, res) => {
   const { oldPassword, newPassword } = req.body;
-  const user = await User.findById(req.user._id);
+  const user = await User.findById(req.user._id).select("+password");
 
   if (!newPassword) {
     throw new ApiError(400, "New password is required");

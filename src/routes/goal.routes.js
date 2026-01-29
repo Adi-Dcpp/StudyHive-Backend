@@ -11,6 +11,7 @@ import {
 import {
   createGoalValidator,
   updateGoalValidator,
+  goalIdParamValidator,
   groupIdParamValidator,
 } from "../validators/goal.validators.js";
 
@@ -61,7 +62,7 @@ router.delete(
   "/:goalId",
   verifyJwt,
   authorizeRoles("mentor"),
-  updateGoalValidator(),
+  goalIdParamValidator(),
   validate,
   deleteGoal
 );

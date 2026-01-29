@@ -6,6 +6,7 @@ import { Group } from "../models/group.models.js";
 import { Submission } from "../models/submission.models.js";
 import { GroupMember } from "../models/groupMember.models.js";
 import { uploadToCloudinary } from "../utils/cloudinary.utils.js";
+import { v2 as cloudinary } from "cloudinary";
 
 const submitAssignment = asyncHandler(async (req, res) => {
   const { assignmentId } = req.params;
@@ -47,8 +48,16 @@ const submitAssignment = asyncHandler(async (req, res) => {
   }
 
   let fileUrl;
+  let cloudinaryPublicId;
+
+  if (submission && req.file && submission.cloudinaryPublicId) {
+    await cloudinary.uploader.destroy(submission.cloudinaryPublicId);
+  }
+
   if (req.file) {
-    fileUrl = await uploadToCloudinary(req.file.path);
+    const uploadResult = await uploadToCloudinary(req.file.path);
+    fileUrl = uploadResult.secureUrl;
+    cloudinaryPublicId = uploadResult.publicId;
   }
 
   if (!submission) {
@@ -56,12 +65,15 @@ const submitAssignment = asyncHandler(async (req, res) => {
       assignmentId,
       userId,
       submittedFile: fileUrl,
+      cloudinaryPublicId,
       submittedText,
       status: "submitted",
       submittedAt: new Date(),
     });
   } else {
     submission.submittedFile = fileUrl ?? submission.submittedFile;
+    submission.cloudinaryPublicId =
+      cloudinaryPublicId ?? submission.cloudinaryPublicId;
     submission.submittedText = submittedText ?? submission.submittedText;
     submission.status = "submitted";
     submission.submittedAt = new Date();
