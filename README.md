@@ -3,7 +3,7 @@
 > A production-grade REST API for collaborative learning and academic management. StudyHive enables educators and students to organize study groups, define learning objectives, manage assignments, and track progress with enterprise-level security and scalability.
 
 [![Node.js](https://img.shields.io/badge/Node.js-v16+-green)](https://nodejs.org/)
-[![Express](https://img.shields.io/badge/Express-v5.2-blue)](https://expressjs.com/)
+[![Express](https://img.shields.io/badge/Express-v4.x-blue)](https://expressjs.com/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-v9.1-green)](https://www.mongodb.com/)
 [![License](https://img.shields.io/badge/License-ISC-yellow)](LICENSE)
 
@@ -107,7 +107,7 @@
 | Layer              | Technology                |
 | ------------------ | ------------------------- |
 | **Runtime**        | Node.js v16+              |
-| **Framework**      | Express.js v5.2           |
+| **Framework**      | Express.js v4.x           |
 | **Database**       | MongoDB + Mongoose        |
 | **Authentication** | JWT (jsonwebtoken)        |
 | **Security**       | bcrypt, crypto            |
@@ -242,11 +242,18 @@ npm start          # Production mode
 2. Go to Settings → API Keys
 3. Copy Cloud Name, API Key, API Secret
 
-**Gmail SMTP**
+**Email Service (Mailtrap / Gmail / SendGrid)**
 
-1. Enable 2-Factor Authentication
-2. Generate App Password
-3. Use in SMTP_PASS
+For **Development**: Use Mailtrap (free tier for testing)
+
+- Sign up at https://mailtrap.io
+- Get SMTP credentials
+
+For **Production**: Configure Gmail, SendGrid, or your email provider
+
+- Gmail: Enable 2-Factor Authentication → Generate App Password
+- SendGrid: Create API key and use in SMTP configuration
+- Both work via Nodemailer with standard SMTP credentials
 
 ---
 
@@ -450,10 +457,13 @@ Request → CORS → Body Parser → Routes → Auth → Validation → Controll
     assignmentId(ref),
     userId(ref),
     submittedFile(URL),
+    cloudinaryPublicId,
     submittedText,
     status,
     marksObtained,
     feedback,
+    submittedAt,
+    reviewedAt,
     timestamps);
 }
 ```
@@ -465,11 +475,14 @@ Request → CORS → Body Parser → Routes → Auth → Validation → Controll
   (_id,
     title,
     description,
-    groupId(ref),
+    type, // 'file', 'link', or 'note'
+    group(ref),
     uploadedBy(ref),
-    fileUrl(URL),
+    fileUrl(URL), // for file type
+    linkUrl(URL), // for link type
     fileSize,
-    fileType,
+    fileName,
+    cloudinaryPublicId, // Cloudinary public ID for file cleanup
     timestamps);
 }
 ```
@@ -653,6 +666,209 @@ npm run format   # Format code with Prettier
 
 ---
 
+## 🌐 Deployment Guide
+
+### Prerequisites for Deployment
+
+- ✅ All routes tested and verified
+- ✅ Environment variables configured
+- ✅ MongoDB Atlas cluster ready
+- ✅ Cloudinary account configured
+- ✅ Email service credentials set
+
+### Deployment Checklist
+
+- [ ] Verify all environment variables in production `.env`
+- [ ] Set `NODE_ENV=production`
+- [ ] Ensure MongoDB URI uses Atlas (cloud) connection
+- [ ] Update CORS_ORIGIN with your frontend domain
+- [ ] Test health check endpoint: `GET /api/v1/healthcheck`
+- [ ] Run smoke tests with authentication endpoints
+- [ ] Verify file upload pipeline (Cloudinary integration)
+- [ ] Enable email verification in production
+
+### Recommended Deployment Platforms
+
+#### **Heroku**
+
+```bash
+# Install Heroku CLI and login
+heroku login
+
+# Create new app
+heroku create studyhive-api
+
+# Add buildpack
+heroku buildpacks:add heroku/nodejs
+
+# Set environment variables
+heroku config:set NODE_ENV=production
+heroku config:set MONGO_URI=your_atlas_uri
+heroku config:set ACCESS_TOKEN_SECRET=your_secret
+# ... set all required env vars
+
+# Deploy
+git push heroku main
+
+# Check logs
+heroku logs --tail
+```
+
+#### **Railway**
+
+1. Connect GitHub repository
+2. Auto-detect Node.js
+3. Add environment variables in dashboard
+4. Deploy with auto-rebuild on push
+
+#### **Render** ⭐ Recommended
+
+1. **Connect Repository**
+   - Visit [render.com](https://render.com) → New → Web Service
+   - Connect GitHub account and select StudyHive-Backend repository
+
+2. **Configure Service**
+   - **Build Command**: `npm install`
+   - **Start Command**: `npm start`
+   - **Node Version**: 18+ (auto-detected)
+   - **Region**: Select closest to your users
+
+3. **Add Environment Variables**
+   - Go to Environment tab → Add the following:
+   - **Note**: PORT is auto-injected by Render, no need to set it
+
+   ```env
+   NODE_ENV=production
+   MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/studyhive
+   ACCESS_TOKEN_SECRET=your_secret_key
+   ACCESS_TOKEN_EXPIRY=15m
+   REFRESH_TOKEN_SECRET=your_secret_key
+   REFRESH_TOKEN_EXPIRY=7d
+   CLOUDINARY_CLOUD_NAME=your_cloud_name
+   CLOUDINARY_API_KEY=your_api_key
+   CLOUDINARY_API_SECRET=your_api_secret
+   MAILTRAP_SMTP_HOST=smtp.mailtrap.io
+   MAILTRAP_SMTP_PORT=2525
+   MAILTRAP_SMTP_USER=your_username
+   MAILTRAP_SMTP_PASS=your_password
+   MAIL_FROM=noreply@studyhive.com
+   CORS_ORIGIN=https://your-frontend-domain.com
+   ```
+
+4. **Deploy**
+   - Click "Deploy Web Service"
+   - Auto-deploys on every push to main branch
+   - View live logs in dashboard
+
+5. **Verify Deployment**
+   ```bash
+   curl https://your-service-name.onrender.com/api/v1/healthcheck
+   ```
+   Expected response:
+   ```json
+   {
+     "statusCode": 200,
+     "message": "Health check successful",
+     "data": { "message": "Server is running" },
+     "success": true
+   }
+   ```
+
+#### **AWS EC2**
+
+```bash
+# SSH into instance
+ssh -i your-key.pem ubuntu@your-instance
+
+# Clone repository
+git clone https://github.com/Adi-Dcpp/StudyHive-Backend.git
+cd StudyHive-Backend
+
+# Install Node.js and npm
+sudo apt-get update
+sudo apt-get install nodejs npm
+
+# Install PM2 for process management
+sudo npm install -g pm2
+
+# Install dependencies
+npm install --production
+
+# Create .env file
+nano .env
+
+# Start with PM2
+pm2 start src/index.js --name "studyhive-api"
+pm2 startup
+pm2 save
+
+# Setup Nginx reverse proxy (optional)
+sudo apt-get install nginx
+# Configure /etc/nginx/sites-available/default
+# Point to http://localhost:3000
+```
+
+### Post-Deployment
+
+1. **Monitor Server Health**
+
+```bash
+curl https://your-domain.com/api/v1/healthcheck
+```
+
+Expected response:
+
+```json
+{
+  "statusCode": 200,
+  "data": { "message": "Server is running" },
+  "success": true
+}
+```
+
+2. **Test API Endpoints**
+
+Use included [Postman Collection](StudyHive-API.postman_collection.json):
+
+- Import into Postman
+- Update `{{base_url}}` to production domain
+- Run test suite
+
+3. **Enable Monitoring**
+
+- Set up error tracking (Sentry, Rollbar)
+- Configure uptime monitoring
+- Enable database backups
+- Setup log aggregation
+
+### Production Best Practices
+
+✅ **Security**
+
+- Use HTTPS only
+- Set secure cookie flags
+- Implement rate limiting
+- Add request logging
+- Enable CORS selectively
+
+✅ **Performance**
+
+- Enable MongoDB indexes
+- Setup CDN for file delivery
+- Implement caching headers
+- Monitor database query performance
+- Use connection pooling
+
+✅ **Reliability**
+
+- Enable automatic backups
+- Setup health check monitoring
+- Configure auto-restart on failure
+- Implement graceful shutdown
+- Log all errors and warnings
+
+---
+
 ## 🤝 Contributing
 
 Contributions are welcome! Please follow these steps:
@@ -677,12 +893,51 @@ This project is licensed under the ISC License - see [LICENSE](LICENSE) file for
 
 ---
 
+## � Support & Troubleshooting
+
+### Common Issues
+
+**MongoDB Connection Error**
+
+```
+Solution: Verify MONGO_URI and whitelist your IP on MongoDB Atlas
+```
+
+**Cloudinary Upload Fails**
+
+```
+Solution: Check API credentials and ensure 5MB file size limit is respected
+```
+
+**Email Not Sending**
+
+```
+Solution: Verify SMTP credentials and check firewall/port access
+```
+
+**CORS Errors**
+
+```
+Solution: Add frontend domain to CORS_ORIGIN environment variable
+```
+
+---
+
 ## 🔗 Resources
 
 - **GitHub**: https://github.com/Adi-Dcpp/StudyHive-Backend
 - **Issues**: https://github.com/Adi-Dcpp/StudyHive-Backend/issues
 - **Product Requirements**: [PRD.md](prd.md)
-- **Work Summary**: [WORK_SUMMARY.md](WORK_SUMMARY.md)
+- **Postman Collection**: [StudyHive-API.postman_collection.json](StudyHive-API.postman_collection.json)
+
+---
+
+## ✅ Release Status
+
+**Version**: 1.0.0  
+**Status**: Production Ready ✅  
+**Last Updated**: January 29, 2026  
+**All Routes**: Tested & Verified ✅
 
 ---
 
