@@ -26,6 +26,8 @@ import {
   refreshTokenValidator,
 } from "../validators/auth.validators.js";
 
+import { ipAuthRate, userRate } from "../middlewares/rateLimiter.middlewares.js";
+
 const router = Router();
 
 //public Routes
@@ -33,6 +35,7 @@ const router = Router();
 // Register
 router.post(
   "/register",
+  ipAuthRate,
   userRegisterValidator(),
   validate,
   registerUser
@@ -41,6 +44,7 @@ router.post(
 // Login
 router.post(
   "/login",
+  ipAuthRate,
   userLoginValidator(),
   validate,
   login
@@ -65,6 +69,7 @@ router.post(
 // Forgot password (request)
 router.post(
   "/forgot-password",
+  ipAuthRate,
   forgotPasswordValidator(),
   validate,
   forgotPasswordRequest
@@ -73,6 +78,7 @@ router.post(
 // Reset forgotten password
 router.post(
   "/reset-password/:token",
+  ipAuthRate,
   resetPasswordValidator(),
   validate,
   resetForgotPassword
@@ -81,6 +87,7 @@ router.post(
 // Refresh access token
 router.post(
   "/refresh-token",
+  ipAuthRate,
   refreshTokenValidator(),
   validate,
   refreshAccessToken
@@ -99,6 +106,7 @@ router.get(
 router.post(
   "/change-password",
   verifyJwt,
+  userRate,
   changePasswordValidator(),
   validate,
   changeCurrentPassword
@@ -108,6 +116,7 @@ router.post(
 router.post(
   "/logout",
   verifyJwt,
+  userRate,
   logOut
 );
 

@@ -102,7 +102,9 @@ const verifyEmail = asyncHandler(async (req, res) => {
   const { token } = req.params;
 
   if (!token) {
-    throw new ApiError(400, "Verification token not found");
+    return res.redirect(
+      `${process.env.FRONTEND_URL}/email-verified?status=failed`
+    );
   }
 
   const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
@@ -113,7 +115,9 @@ const verifyEmail = asyncHandler(async (req, res) => {
   });
 
   if (!user) {
-    throw new ApiError(400, "Token is invalid or expired");
+    return res.redirect(
+      `${process.env.FRONTEND_URL}/email-verified?status=failed`
+    );
   }
 
   user.emailVerificationToken = undefined;
@@ -124,11 +128,14 @@ const verifyEmail = asyncHandler(async (req, res) => {
 
   await user.save({ validateBeforeSave: false });
 
-  return res.status(200).json(
-    new ApiResponse(200, "Email verified successfully", {
-      isEmailVerified: true,
-    }),
+  return res.redirect(
+    `${process.env.FRONTEND_URL}/email-verified?status=success`,
   );
+  // return res.status(200).json(
+  //   new ApiResponse(200, "Email verified successfully", {
+  //     isEmailVerified: true,
+  //   }),
+  // );
 });
 
 const login = asyncHandler(async (req, res) => {
@@ -376,10 +383,7 @@ const resetForgotPassword = asyncHandler(async (req, res) => {
     throw new ApiError(400, "New password is required");
   }
 
-  const hashedToken = crypto
-    .createHash("sha256")
-    .update(token)
-    .digest("hex");
+  const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
   const user = await User.findOne({
     forgotPasswordToken: hashedToken,

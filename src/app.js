@@ -4,14 +4,9 @@ dotenv.config();
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import { globalRate } from "./middlewares/rateLimiter.middlewares.js";
 
 const app = express();
-
-//basic app config
-app.use(express.json({ limit: "16kb" }));
-app.use(express.urlencoded({ extended: true, limit: "16kb" }));
-app.use(express.static("public"));
-app.use(cookieParser());
 
 //cors config
 app.use(
@@ -22,6 +17,14 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"],
   }),
 );
+
+//basic app config
+app.use(express.json({ limit: "16kb" }));
+app.use(express.urlencoded({ extended: true, limit: "16kb" }));
+app.use(express.static("public"));
+app.use(cookieParser());
+
+app.use(globalRate);
 
 //import Routes
 import authRouter from "./routes/auth.routes.js";
