@@ -2,6 +2,8 @@ import Mailgen from "mailgen";
 import nodemailer from "nodemailer";
 import { ApiError } from "./api-error.utils.js";
 
+const isProd = process.env.NODE_ENV === "production";
+
 const mailGenerator = new Mailgen({
   theme: "default",
   product: {
@@ -10,22 +12,34 @@ const mailGenerator = new Mailgen({
   },
 });
 
-const transporter = nodemailer.createTransport({
-  host: process.env.MAILTRAP_SMTP_HOST,
-  port: Number(process.env.MAILTRAP_SMTP_PORT),
-  secure: false,
-  auth: {
-    user: process.env.MAILTRAP_SMTP_USER,
-    pass: process.env.MAILTRAP_SMTP_PASS,
-  },
-});
+const transporter = nodemailer.createTransport(
+  isProd
+    ? {
+        host: process.env.PROD_MAIL_HOST,
+        port: Number(process.env.PROD_MAIL_PORT),
+        secure: true, // Gmail with port 465
+        auth: {
+          user: process.env.PROD_MAIL_USER,
+          pass: process.env.PROD_MAIL_PASS,
+        },
+      }
+    : {
+        host: process.env.MAILTRAP_HOST,
+        port: Number(process.env.MAILTRAP_PORT),
+        secure: false,
+        auth: {
+          user: process.env.MAILTRAP_USER,
+          pass: process.env.MAILTRAP_PASS,
+        },
+      },
+);
 
 const sendEmail = async ({ email, subject, mailgenContent }) => {
   try {
     const emailHtml = mailGenerator.generate(mailgenContent);
 
     await transporter.sendMail({
-      from: `"StudyHive" <${process.env.MAIL_FROM}>`,
+      from: `"StudyHive" <${isProd ? process.env.PROD_MAIL_USER : process.env.MAILTRAP_USER}>`,
       to: email,
       subject,
       html: emailHtml,
