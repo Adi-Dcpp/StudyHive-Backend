@@ -4,6 +4,10 @@ dotenv.config();
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import helmet from "helmet";
+import hpp from "hpp";
+import pino from "pino";
+import pinoHttp from "pino-http";
 import { globalRate } from "./middlewares/rateLimiter.middlewares.js";
 
 const app = express();
@@ -18,10 +22,28 @@ app.use(
   }),
 );
 
+const logger = pino({
+  level: process.env.NODE_ENV === "production" ? "info" : "debug",
+  transport:
+    process.env.NODE_ENV !== "production"
+      ? {
+          target: "pino-pretty",
+          options: {
+            colorize: true,
+            translateTime: "HH:MM:ss",
+            ignore: "pid,hostname",
+          },
+        }
+      : undefined,
+});
+
 //basic app config
+app.use(helmet());
+app.use(pinoHttp({ logger }));
 app.use(express.json({ limit: "16kb" }));
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 app.use(express.static("public"));
+app.use(hpp());
 app.use(cookieParser());
 
 app.use(globalRate);

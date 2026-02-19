@@ -12,10 +12,18 @@ import crypto from "crypto";
 
 const isProd = process.env.NODE_ENV === "production";
 
-const cookieOptions = {
+const accessTokenCookieOptions = {
   httpOnly: true,
   secure: isProd,
   sameSite: isProd ? "none" : "lax",
+  maxAge: 15 * 60 * 1000, // 15 minutes
+};
+
+const refreshTokenCookieOptions = {
+  httpOnly: true,
+  secure: isProd,
+  sameSite: isProd ? "none" : "lax",
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
 };
 
 const generateRefreshAndAccessToken = async (userId) => {
@@ -179,8 +187,8 @@ const login = asyncHandler(async (req, res) => {
 
   return res
     .status(200)
-    .cookie("accessToken", accessToken, cookieOptions)
-    .cookie("refreshToken", refreshToken, cookieOptions)
+    .cookie("accessToken", accessToken, accessTokenCookieOptions)
+    .cookie("refreshToken", refreshToken, refreshTokenCookieOptions)
     .json(
       new ApiResponse(200, "User successfully logged In", {
         user: loggedInUser,
@@ -228,8 +236,8 @@ const logOut = asyncHandler(async (req, res) => {
   await user.save({ validateBeforeSave: false });
 
   return res
-    .clearCookie("accessToken", cookieOptions)
-    .clearCookie("refreshToken", cookieOptions)
+    .clearCookie("accessToken", accessTokenCookieOptions)
+    .clearCookie("refreshToken", refreshTokenCookieOptions)
     .status(200)
     .json(new ApiResponse(200, "User logged out successfully", {}));
 });
@@ -268,8 +276,8 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 
   return res
     .status(200)
-    .cookie("refreshToken", newRefreshToken, cookieOptions)
-    .cookie("accessToken", accessToken, cookieOptions)
+    .cookie("refreshToken", newRefreshToken, refreshTokenCookieOptions)
+    .cookie("accessToken", accessToken, accessTokenCookieOptions)
     .json(new ApiResponse(200, "Access token successfully refreshed", {}));
 });
 

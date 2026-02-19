@@ -55,7 +55,7 @@ const submitAssignment = asyncHandler(async (req, res) => {
   }
 
   if (req.file) {
-    const uploadResult = await uploadToCloudinary(req.file.path);
+    const uploadResult = await uploadToCloudinary(req.file.path,req.file.mimetype);
     fileUrl = uploadResult.secureUrl;
     cloudinaryPublicId = uploadResult.publicId;
   }

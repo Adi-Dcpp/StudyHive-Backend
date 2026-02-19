@@ -10,11 +10,6 @@ const mailGenerator = new Mailgen({
   },
 });
 
-console.log("MAIL ENV CHECK:", {
-  host: process.env.MAILTRAP_SMTP_HOST,
-  port: process.env.MAILTRAP_SMTP_PORT,
-});
-
 const transporter = nodemailer.createTransport({
   host: process.env.MAILTRAP_SMTP_HOST,
   port: Number(process.env.MAILTRAP_SMTP_PORT),

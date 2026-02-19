@@ -7,11 +7,14 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-const uploadToCloudinary = async (localFilePath) => {
+const uploadToCloudinary = async (localFilePath, mimetype) => {
   try {
+    const resourceType =
+      mimetype && mimetype.startsWith("image/") ? "image" : "raw";
+
     const result = await cloudinary.uploader.upload(localFilePath, {
       folder: "studyhive",
-      resource_type: "auto",
+      resource_type: resourceType,
     });
 
     fs.unlinkSync(localFilePath);

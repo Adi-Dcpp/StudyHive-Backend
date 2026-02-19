@@ -32,7 +32,7 @@ const uploadResource = asyncHandler(async (req, res) => {
     if (!req.file) {
       throw new ApiError(400, "File is required for file type resource");
     }
-    const uploadResult = await uploadToCloudinary(req.file.path);
+    const uploadResult = await uploadToCloudinary(req.file.path,req.file.mimetype);
     fileUrl = uploadResult.secureUrl;
     cloudinaryPublicId = uploadResult.publicId;
   }

@@ -98,13 +98,11 @@ router.get(
   viewGroupMembers,
 );
 
-// Admin Only
-
 // Delete group
 router.delete(
   "/:groupId",
   verifyJwt,
-  authorizeRoles("admin"),
+  authorizeRoles("mentor"),
   deleteGroupValidator(),
   validate,
   deleteGroup,
