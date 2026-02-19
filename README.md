@@ -2,8 +2,8 @@
 
 > A production-grade REST API for collaborative learning and academic management. StudyHive enables educators and students to organize study groups, define learning objectives, manage assignments, and track progress with enterprise-level security and scalability.
 
-[![Node.js](https://img.shields.io/badge/Node.js-v16+-green)](https://nodejs.org/)
-[![Express](https://img.shields.io/badge/Express-v4.x-blue)](https://expressjs.com/)
+[![Node.js](https://img.shields.io/badge/Node.js-v18+-green)](https://nodejs.org/)
+[![Express](https://img.shields.io/badge/Express-v5.x-blue)](https://expressjs.com/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-v9.1-green)](https://www.mongodb.com/)
 [![License](https://img.shields.io/badge/License-ISC-yellow)](LICENSE)
 
@@ -75,7 +75,7 @@
 - **Secure Cloud Storage** via Cloudinary
 - **Automatic Temp File Cleanup** for efficiency
 - **5MB File Size Limit** for optimal performance
-- **Multiple File Format Support**
+- **Images and PDF Support**
 - **HTTPS Secured URLs** for all uploads
 
 ### 📧 Email System
@@ -106,14 +106,15 @@
 
 | Layer              | Technology                |
 | ------------------ | ------------------------- |
-| **Runtime**        | Node.js v16+              |
-| **Framework**      | Express.js v4.x           |
+| **Runtime**        | Node.js v18+              |
+| **Framework**      | Express.js v5.x           |
 | **Database**       | MongoDB + Mongoose        |
 | **Authentication** | JWT (jsonwebtoken)        |
-| **Security**       | bcrypt, crypto            |
+| **Security**       | helmet, hpp, bcrypt       |
 | **File Upload**    | Multer, Cloudinary        |
 | **Email**          | Nodemailer, Mailgen       |
 | **Validation**     | express-validator         |
+| **Logging**        | pino, pino-http           |
 | **DevTools**       | nodemon, dotenv, Prettier |
 
 ---
@@ -135,7 +136,7 @@ cp .env.example .env
 # Start development server
 npm run dev
 
-# Server runs on http://localhost:3000
+# Server runs on http://localhost:<PORT> (default: 3000)
 ```
 
 ---
@@ -144,7 +145,7 @@ npm run dev
 
 ### Prerequisites
 
-- **Node.js** v16 or higher
+- **Node.js** v18 or higher
 - **MongoDB** (local or cloud - MongoDB Atlas)
 - **Cloudinary Account** (for file uploads)
 - **Email Service** credentials (Gmail SMTP)
@@ -173,9 +174,10 @@ cp .env.example .env
 4. **Update .env with Your Credentials**
 
 ```env
-PORT=3000
+PORT=8000
 NODE_ENV=development
-CORS_ORIGIN=http://localhost:5173,http://localhost:3000
+CORS_ORIGIN=http://localhost:5173
+FRONTEND_URL=http://localhost:5173
 
 MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/studyhive
 
@@ -188,11 +190,17 @@ CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
 
-MAILTRAP_SMTP_HOST=smtp.mailtrap.io
-MAILTRAP_SMTP_PORT=2525
-MAILTRAP_SMTP_USER=your_username
-MAILTRAP_SMTP_PASS=your_password
-MAIL_FROM=noreply@studyhive.com
+# Development email (Mailtrap)
+MAILTRAP_HOST=smtp.mailtrap.io
+MAILTRAP_PORT=2525
+MAILTRAP_USER=your_username
+MAILTRAP_PASS=your_password
+
+# Production email (SMTP)
+PROD_MAIL_HOST=smtp.gmail.com
+PROD_MAIL_PORT=465
+PROD_MAIL_USER=your_email@gmail.com
+PROD_MAIL_PASS=your_app_password
 ```
 
 5. **Start Server**
@@ -210,7 +218,7 @@ npm start          # Production mode
 
 | Variable                | Description        | Example                |
 | ----------------------- | ------------------ | ---------------------- |
-| `PORT`                  | Server port        | 3000                   |
+| `PORT`                  | Server port        | 8000                   |
 | `NODE_ENV`              | Environment        | development/production |
 | `MONGO_URI`             | MongoDB connection | mongodb+srv://...      |
 | `ACCESS_TOKEN_SECRET`   | JWT secret         | your_secret_key        |
@@ -220,12 +228,16 @@ npm start          # Production mode
 | `CLOUDINARY_CLOUD_NAME` | Cloudinary account | your_account           |
 | `CLOUDINARY_API_KEY`    | Cloudinary API key | your_api_key           |
 | `CLOUDINARY_API_SECRET` | Cloudinary secret  | your_api_secret        |
-| `MAILTRAP_SMTP_HOST`    | Email host         | smtp.mailtrap.io       |
-| `MAILTRAP_SMTP_PORT`    | Email port         | 2525                   |
-| `MAILTRAP_SMTP_USER`    | Email user         | username               |
-| `MAILTRAP_SMTP_PASS`    | Email password     | password               |
-| `MAIL_FROM`             | Sender email       | noreply@studyhive.com  |
+| `MAILTRAP_HOST`         | Dev email host     | smtp.mailtrap.io       |
+| `MAILTRAP_PORT`         | Dev email port     | 2525                   |
+| `MAILTRAP_USER`         | Dev email user     | username               |
+| `MAILTRAP_PASS`         | Dev email password | password               |
+| `PROD_MAIL_HOST`        | Prod SMTP host     | smtp.gmail.com         |
+| `PROD_MAIL_PORT`        | Prod SMTP port     | 465                    |
+| `PROD_MAIL_USER`        | Prod SMTP user     | user@example.com       |
+| `PROD_MAIL_PASS`        | Prod SMTP pass     | app_password           |
 | `CORS_ORIGIN`           | Allowed origins    | http://localhost:5173  |
+| `FRONTEND_URL`          | Frontend base URL  | http://localhost:5173  |
 
 ### Getting Service Credentials
 
@@ -248,12 +260,14 @@ For **Development**: Use Mailtrap (free tier for testing)
 
 - Sign up at https://mailtrap.io
 - Get SMTP credentials
+- Configure `MAILTRAP_HOST`, `MAILTRAP_PORT`, `MAILTRAP_USER`, `MAILTRAP_PASS`
 
 For **Production**: Configure Gmail, SendGrid, or your email provider
 
 - Gmail: Enable 2-Factor Authentication → Generate App Password
 - SendGrid: Create API key and use in SMTP configuration
 - Both work via Nodemailer with standard SMTP credentials
+- Configure `PROD_MAIL_HOST`, `PROD_MAIL_PORT`, `PROD_MAIL_USER`, `PROD_MAIL_PASS`
 
 ---
 
@@ -262,7 +276,7 @@ For **Production**: Configure Gmail, SendGrid, or your email provider
 ### Base URL
 
 ```
-http://localhost:3000/api/v1
+http://localhost:<PORT>/api/v1
 ```
 
 ### Authentication (`/auth`)
@@ -384,6 +398,7 @@ Request → CORS → Body Parser → Routes → Auth → Validation → Controll
 ### File Security
 
 - **File Size Limits** (5MB per submission)
+- **MIME Allowlist** (images + PDF)
 - **Cloud Storage** via Cloudinary (no server storage)
 - **Automatic Cleanup** of temporary files
 - **HTTPS URLs** for all file access
@@ -494,7 +509,7 @@ Request → CORS → Body Parser → Routes → Auth → Validation → Controll
 ### Register User
 
 ```bash
-curl -X POST http://localhost:3000/api/v1/auth/register \
+curl -X POST http://localhost:<PORT>/api/v1/auth/register \
   -H "Content-Type: application/json" \
   -d '{
     "name": "John Doe",
@@ -506,7 +521,7 @@ curl -X POST http://localhost:3000/api/v1/auth/register \
 ### Create Study Group
 
 ```bash
-curl -X POST http://localhost:3000/api/v1/groups \
+curl -X POST http://localhost:<PORT>/api/v1/groups \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -518,7 +533,7 @@ curl -X POST http://localhost:3000/api/v1/groups \
 ### Join Group
 
 ```bash
-curl -X POST http://localhost:3000/api/v1/groups/join \
+curl -X POST http://localhost:<PORT>/api/v1/groups/join \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"inviteCode": "abc123"}'
@@ -527,7 +542,7 @@ curl -X POST http://localhost:3000/api/v1/groups/join \
 ### Submit Assignment
 
 ```bash
-curl -X POST http://localhost:3000/api/v1/submissions/assignments/ASSIGNMENT_ID/submit \
+curl -X POST http://localhost:<PORT>/api/v1/submissions/assignments/ASSIGNMENT_ID/submit \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -F "file=@submission.pdf" \
   -F "submittedText=My submission"
@@ -536,7 +551,7 @@ curl -X POST http://localhost:3000/api/v1/submissions/assignments/ASSIGNMENT_ID/
 ### Review Submission
 
 ```bash
-curl -X PUT http://localhost:3000/api/v1/submissions/SUBMISSION_ID/review \
+curl -X PUT http://localhost:<PORT>/api/v1/submissions/SUBMISSION_ID/review \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -747,12 +762,16 @@ heroku logs --tail
    CLOUDINARY_CLOUD_NAME=your_cloud_name
    CLOUDINARY_API_KEY=your_api_key
    CLOUDINARY_API_SECRET=your_api_secret
-   MAILTRAP_SMTP_HOST=smtp.mailtrap.io
-   MAILTRAP_SMTP_PORT=2525
-   MAILTRAP_SMTP_USER=your_username
-   MAILTRAP_SMTP_PASS=your_password
-   MAIL_FROM=noreply@studyhive.com
+   MAILTRAP_HOST=smtp.mailtrap.io
+   MAILTRAP_PORT=2525
+   MAILTRAP_USER=your_username
+   MAILTRAP_PASS=your_password
+   PROD_MAIL_HOST=smtp.gmail.com
+   PROD_MAIL_PORT=465
+   PROD_MAIL_USER=your_email@gmail.com
+   PROD_MAIL_PASS=your_app_password
    CORS_ORIGIN=https://your-frontend-domain.com
+   FRONTEND_URL=https://your-frontend-domain.com
    ```
 
 4. **Deploy**
@@ -805,7 +824,7 @@ pm2 save
 # Setup Nginx reverse proxy (optional)
 sudo apt-get install nginx
 # Configure /etc/nginx/sites-available/default
-# Point to http://localhost:3000
+# Point to http://localhost:<PORT>
 ```
 
 ### Post-Deployment
@@ -893,7 +912,7 @@ This project is licensed under the ISC License - see [LICENSE](LICENSE) file for
 
 ---
 
-## � Support & Troubleshooting
+## Support & Troubleshooting
 
 ### Common Issues
 

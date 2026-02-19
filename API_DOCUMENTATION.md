@@ -6,7 +6,7 @@ This document describes the public HTTP API for StudyHive Backend (Node.js + Exp
 
 ### Base URL
 
-`/api/v1`
+`http://localhost:<PORT>/api/v1`
 
 ### Success Response Wrapper
 
@@ -38,6 +38,7 @@ This document describes the public HTTP API for StudyHive Backend (Node.js + Exp
 - Refresh token is accepted from either:
   - `refreshToken` cookie, or
   - `refreshToken` in request body.
+- Access and refresh cookies are HTTP-only and have explicit `maxAge` values.
 
 ### Roles
 
@@ -134,7 +135,7 @@ This document describes the public HTTP API for StudyHive Backend (Node.js + Exp
 curl -X POST \
   -H "Content-Type: application/json" \
   -d '{"name":"Alex","email":"alex@example.com","password":"Aa1!aaaa"}' \
-  http://localhost:3000/api/v1/auth/register
+  http://localhost:<PORT>/api/v1/auth/register
 ```
 
 ### Example Response (Success)
@@ -287,7 +288,7 @@ curl -X POST \
 curl -X POST \
   -H "Content-Type: application/json" \
   -d '{"email":"alex@example.com","password":"Aa1!aaaa"}' \
-  http://localhost:3000/api/v1/auth/login
+  http://localhost:<PORT>/api/v1/auth/login
 ```
 
 ### Example Response (Success)
@@ -1017,13 +1018,13 @@ curl -X POST \
 
 ### Endpoint Overview
 
-| Item                    | Value                        |
-| ----------------------- | ---------------------------- |
-| HTTP Method             | `DELETE`                     |
-| Route                   | `/api/v1/groups/:groupId`    |
-| Description             | Delete a group (admin only). |
-| Authentication Required | Yes                          |
-| Allowed Roles           | admin                        |
+| Item                    | Value                         |
+| ----------------------- | ----------------------------- |
+| HTTP Method             | `DELETE`                      |
+| Route                   | `/api/v1/groups/:groupId`     |
+| Description             | Delete a group (mentor only). |
+| Authentication Required | Yes                           |
+| Allowed Roles           | mentor                        |
 
 ### Success Response
 
@@ -1528,6 +1529,7 @@ curl -X POST \
 
 - If a previous submission is in `revision_required`, it can be resubmitted.
 - If replacing a file submission, the old file is removed from Cloudinary.
+- Allowed file types: JPEG, PNG, WEBP, PDF.
 
 ---
 
@@ -1799,6 +1801,7 @@ curl -X POST \
 ### Notes
 
 - If the resource is a file, the file is also removed from Cloudinary.
+- Allowed file types: JPEG, PNG, WEBP, PDF.
 
 ---
 
