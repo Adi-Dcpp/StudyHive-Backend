@@ -12,13 +12,6 @@ import crypto from "crypto";
 
 const isProd = process.env.NODE_ENV === "production";
 
-const accessTokenCookieOptions = {
-  httpOnly: true,
-  secure: isProd,
-  sameSite: isProd ? "none" : "lax",
-  maxAge: 15 * 60 * 1000, // 15 minutes
-};
-
 const refreshTokenCookieOptions = {
   httpOnly: true,
   secure: isProd,
@@ -83,7 +76,7 @@ const registerUser = asyncHandler(async (req, res) => {
     subject: "Verify your email",
     mailgenContent: emailVerificationMailgenContent(
       user.name,
-      `${req.protocol}://${req.get("host")}/api/v1/auth/verify-email/${unHashedToken}`,
+      `${process.env.BASE_URL}/api/v1/auth/verify-email/${unHashedToken}`,
     ),
   });
 
@@ -111,7 +104,7 @@ const verifyEmail = asyncHandler(async (req, res) => {
 
   if (!token) {
     return res.redirect(
-      `${process.env.FRONTEND_URL}/email-verified?status=failed`
+      `${process.env.FRONTEND_URL}/email-verified?status=failed`,
     );
   }
 
@@ -124,7 +117,7 @@ const verifyEmail = asyncHandler(async (req, res) => {
 
   if (!user) {
     return res.redirect(
-      `${process.env.FRONTEND_URL}/email-verified?status=failed`
+      `${process.env.FRONTEND_URL}/email-verified?status=failed`,
     );
   }
 
@@ -187,11 +180,11 @@ const login = asyncHandler(async (req, res) => {
 
   return res
     .status(200)
-    .cookie("accessToken", accessToken, accessTokenCookieOptions)
     .cookie("refreshToken", refreshToken, refreshTokenCookieOptions)
     .json(
       new ApiResponse(200, "User successfully logged In", {
         user: loggedInUser,
+        accessToken,
       }),
     );
 });
@@ -236,7 +229,6 @@ const logOut = asyncHandler(async (req, res) => {
   await user.save({ validateBeforeSave: false });
 
   return res
-    .clearCookie("accessToken", accessTokenCookieOptions)
     .clearCookie("refreshToken", refreshTokenCookieOptions)
     .status(200)
     .json(new ApiResponse(200, "User logged out successfully", {}));
@@ -244,7 +236,9 @@ const logOut = asyncHandler(async (req, res) => {
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
   const incomingRefreshToken =
-    req.cookies?.refreshToken || req.body?.refreshToken;
+    req.cookies?.refreshToken ||
+    req.body?.refreshToken ||
+    req.headers["x-refresh-token"];
 
   if (!incomingRefreshToken) {
     throw new ApiError(401, "Unauthorized access");
@@ -277,8 +271,11 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .cookie("refreshToken", newRefreshToken, refreshTokenCookieOptions)
-    .cookie("accessToken", accessToken, accessTokenCookieOptions)
-    .json(new ApiResponse(200, "Access token successfully refreshed", {}));
+    .json(
+      new ApiResponse(200, "Access token successfully refreshed", {
+        accessToken,
+      }),
+    );
 });
 
 const resendEmailVerification = asyncHandler(async (req, res) => {
@@ -325,7 +322,7 @@ const resendEmailVerification = asyncHandler(async (req, res) => {
     subject: "Verify Email",
     mailgenContent: emailVerificationMailgenContent(
       user.name,
-      `${req.protocol}://${req.get("host")}/api/v1/auth/verify-email/${unHashedToken}`,
+      `${process.env.BASE_URL}/api/v1/auth/verify-email/${unHashedToken}`,
     ),
   });
 
@@ -410,6 +407,7 @@ const resetForgotPassword = asyncHandler(async (req, res) => {
   await user.save({ validateBeforeSave: false });
 
   return res
+    .clearCookie("refreshToken", refreshTokenCookieOptions)
     .status(200)
     .json(new ApiResponse(200, "Password reset Successfully", {}));
 });
