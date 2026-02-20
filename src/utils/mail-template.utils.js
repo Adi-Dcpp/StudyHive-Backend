@@ -1,21 +1,24 @@
-import Mailgen from "mailgen";
-import nodemailer from "nodemailer";
-
 const emailVerificationMailgenContent = (username, verificationUrl) => {
   return {
     body: {
       name: username,
-      intro: "Welcome to our app! We're excited to have you on board.",
+      intro: [
+        "Welcome to StudyHive!",
+        "We're excited to have you on board."
+      ],
       action: {
-        instructions: "To verify your email, click the button below:",
+        instructions:
+          "To activate your account, please verify your email by clicking the button below:",
         button: {
           color: "#22BC66",
-          text: "Verify your email",
+          text: "Verify Email",
           link: verificationUrl,
         },
       },
-      outro:
-        "Need help or have questions? Just reply to this email, we'd love to help.",
+      outro: [
+        "This verification link will expire soon for security reasons.",
+        "If you did not create an account, you can safely ignore this email."
+      ],
     },
   };
 };
@@ -24,18 +27,22 @@ const forgotPasswordMailgenContent = (username, passwordResetUrl) => {
   return {
     body: {
       name: username,
-      intro: "We received a request to reset your account password.",
+      intro: [
+        "We received a request to reset your password."
+      ],
       action: {
         instructions:
-          "Click the button below to reset your password:",
+          "Click the button below to set a new password:",
         button: {
-          color: "#22BC66",
+          color: "#FF6136",
           text: "Reset Password",
           link: passwordResetUrl,
         },
       },
-      outro:
-        "If you didn't request this, you can safely ignore this email.",
+      outro: [
+        "If you did not request a password reset, no further action is required.",
+        "For security, this reset link will expire shortly."
+      ],
     },
   };
 };
