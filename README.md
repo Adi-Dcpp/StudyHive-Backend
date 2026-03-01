@@ -676,6 +676,9 @@ Response to Client
 ```bash
 npm run dev      # Start with hot-reload (development)
 npm start        # Start server (production)
+npm run seed      # Reset DB and insert dummy data (development)
+npm run seed:fresh # Alias of seed (clear + fresh dummy data)
+npm run seed:force # Seed even in production mode (use carefully)
 npm run format   # Format code with Prettier
 ```
 
@@ -908,7 +911,7 @@ This project is licensed under the ISC License - see [LICENSE](LICENSE) file for
 
 ## 👨‍💻 Author
 
-**Aditya Sharma** - [@Adi-Dcpp](https://github.com/Adi-Dcpp)
+**Aditya Mandal** - [@Adi-Dcpp](https://github.com/Adi-Dcpp)
 
 ---
 
