@@ -1,6 +1,6 @@
 import dotenv from "dotenv";
 import mongoose from "mongoose";
-
+//AI generated script 
 import connectDB from "../db/index.db.js";
 import { User } from "../models/user.models.js";
 import { Group } from "../models/group.models.js";
