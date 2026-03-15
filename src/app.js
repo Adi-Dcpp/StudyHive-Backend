@@ -16,13 +16,11 @@ app.set("trust proxy", 1);
 //cors config
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN
-      ? process.env.CORS_ORIGIN.split(",")
-      : ["http://localhost:5173"],
-    methods: ["PUT", "GET", "POST", "DELETE", "OPTIONS", "PATCH"],
+    origin: ["http://localhost:5173"],
     credentials: true,
-    allowedHeaders: ["Content-Type", "Authorization", "x-refresh-token"],
-  }),
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "Cache-Control", "Pragma"]
+  })
 );
 
 const logger = pino({
@@ -59,6 +57,7 @@ import assignmentRouter from "./routes/assignment.routes.js";
 import submissionRouter from "./routes/submission.routes.js";
 import resourceRouter from "./routes/resource.routes.js";
 import healthcheckRouter from "./routes/healthcheck.routes.js";
+import dashboardRouter from "./routes/dashboard.routes.js";
 
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/groups", groupRouter);
@@ -67,6 +66,7 @@ app.use("/api/v1/assignments", assignmentRouter);
 app.use("/api/v1/submissions", submissionRouter);
 app.use("/api/v1/resources", resourceRouter);
 app.use("/api/v1/healthcheck", healthcheckRouter);
+app.use("/api/v1/dashboard", dashboardRouter);
 
 app.use(globalErrorHandler);
 
