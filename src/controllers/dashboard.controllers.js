@@ -90,14 +90,14 @@ const getMentorDashboard = asyncHandler(async (req, res) => {
         .populate("userId", "name email")
         .populate("assignmentId", "title")
         .sort({ createdAt: -1 })
-        .limit(5)
+        .limit(10)
         .lean(),
       Assignment.find({
         goalId: { $in: goalIds },
       })
         .select("title deadline createdAt")
         .sort({ createdAt: -1 })
-        .limit(5)
+        .limit(10)
         .lean(),
     ]);
 
