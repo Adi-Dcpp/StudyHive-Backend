@@ -6,6 +6,10 @@ const authorizeRoles = (...allowedRoles) => {
       return next(new ApiError(401, "Unauthorized request"));
     }
 
+    if(req.user.isSuspended) {
+      return next(new ApiError(403, "Account is suspended. Contact support."));
+    }
+
     if (!allowedRoles.includes(req.user.role)) {
       return next(new ApiError(
         403,
