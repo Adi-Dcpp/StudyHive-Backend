@@ -77,9 +77,25 @@ const viewAllJoinedGroup = asyncHandler(async (req, res) => {
     "group",
   );
 
+  const groupIds = memberships
+    .map((membership) => membership.group?._id)
+    .filter(Boolean);
+
+  const memberCounts = await GroupMember.aggregate([
+    { $match: { group: { $in: groupIds } } },
+    { $group: { _id: "$group", count: { $sum: 1 } } },
+  ]);
+
+  const memberCountMap = new Map(
+    memberCounts.map((entry) => [entry._id.toString(), entry.count]),
+  );
+
   const result = memberships.map((m) => ({
     groupId: m.group._id,
     name: m.group.name,
+    description: m.group.description,
+    mentor: m.group.mentor,
+    membersCount: memberCountMap.get(m.group._id.toString()) || 0,
     role: m.role,
   }));
 
