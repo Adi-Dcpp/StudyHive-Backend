@@ -12,6 +12,10 @@ const uploadToCloudinary = async (localFilePath, mimetype) => {
     const resourceType =
       mimetype && mimetype.startsWith("image/") ? "image" : "raw";
 
+    if (!localFilePath) {
+      throw new ApiError(400, "File path is missing");
+    }
+
     const result = await cloudinary.uploader.upload(localFilePath, {
       folder: "studyhive",
       resource_type: resourceType,
@@ -25,7 +29,7 @@ const uploadToCloudinary = async (localFilePath, mimetype) => {
     };
   } catch (error) {
     if (fs.existsSync(localFilePath)) {
-      fs.unlinkSync(localFilePath);
+      await fs.promises.unlink(localFilePath);
     }
     throw error;
   }

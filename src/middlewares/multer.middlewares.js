@@ -1,6 +1,7 @@
 import multer from "multer";
 import path from "path";
 import { ApiError } from "../utils/api-error.utils.js";
+import os from "os";
 
 const allowedMimeTypes = [
   "image/jpeg",
@@ -11,7 +12,7 @@ const allowedMimeTypes = [
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "public/temp");
+    cb(null, os.tmpdir());
   },
 
   filename: (req, file, cb) => {

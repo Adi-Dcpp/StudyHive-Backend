@@ -9,14 +9,29 @@ import hpp from "hpp";
 import pino from "pino";
 import pinoHttp from "pino-http";
 import { globalRate } from "./middlewares/rateLimiter.middlewares.js";
+import mongoSanitize from "express-mongo-sanitize";
 
 const app = express();
 app.set("trust proxy", 1);
 
 //cors config
+
+const allowedOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(",").map(origin => origin.trim())
+  : [];
+
 app.use(
   cors({
-    origin: ["http://localhost:5173"],
+    origin: (origin, callback) => {
+      // allow Postman / curl (no origin)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "Cache-Control", "Pragma"]
@@ -41,10 +56,15 @@ const logger = pino({
 //basic app config
 app.use(helmet());
 app.use(pinoHttp({ logger }));
+app.use(hpp()); // no duplicate query params
 app.use(express.json({ limit: "16kb" }));
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
+app.use(mongoSanitize()); // Remove $ and . from req.body, req.query, and req.params to prevent NoSQL injection
+// Never expose temp uploads from static hosting.
+app.use("/temp", (req, res) => {
+  return res.status(404).json({ message: "Not found" }); // Prevent access to temp uploads
+});
 app.use(express.static("public"));
-app.use(hpp());
 app.use(cookieParser());
 
 app.use(globalRate);
