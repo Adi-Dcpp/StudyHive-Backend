@@ -21,7 +21,13 @@ const uploadResource = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Group not found");
   }
 
-  if (!group.mentor.equals(userId)) {
+  const mentorMembership = await GroupMember.findOne({
+    group: groupId,
+    user: userId,
+    role: "mentor",
+  });
+
+  if (!mentorMembership) {
     throw new ApiError(403, "User not authorized");
   }
 

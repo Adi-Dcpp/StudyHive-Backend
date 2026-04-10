@@ -4,6 +4,7 @@ import { asyncHandler } from "../utils/async-handler.utils.js";
 import { Assignment } from "../models/assignment.models.js";
 import { Goal } from "../models/goal.models.js";
 import { Group } from "../models/group.models.js";
+import { GroupMember } from "../models/groupMember.models.js";
 
 const createAssignment = asyncHandler(async (req, res) => {
   const { goalId } = req.params;
@@ -24,7 +25,13 @@ const createAssignment = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Failed to get the group");
   }
 
-  if (!group.mentor.equals(userId)) {
+  const mentorMembership = await GroupMember.findOne({
+    group: groupId,
+    user: userId,
+    role: "mentor",
+  });
+
+  if (!mentorMembership) {
     throw new ApiError(403, "User not authorized to create assignment");
   }
 

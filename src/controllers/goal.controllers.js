@@ -16,7 +16,13 @@ const createGoal = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Group not found");
   }
 
-  if (!group.mentor.equals(userId)) {
+  const mentorMembership = await GroupMember.findOne({
+    group: groupId,
+    user: userId,
+    role: "mentor",
+  });
+
+  if (!mentorMembership) {
     throw new ApiError(403, "User is not authorised to create new goal");
   }
 
@@ -69,7 +75,11 @@ const getGoalsByGroup = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Group not found");
   }
 
-  const isMentor = group.mentor.equals(userId);
+  const isMentor = await GroupMember.exists({
+    group: groupId,
+    user: userId,
+    role: "mentor",
+  });
 
   const isAssignedLearner = await Goal.exists({
     group: groupId,
@@ -117,7 +127,17 @@ const updateGoal = asyncHandler(async (req, res) => {
 
   const group = await Group.findById(goal.group);
 
-  if (!group || !group.mentor.equals(userId)) {
+  if (!group) {
+    throw new ApiError(404, "Group not found");
+  }
+
+  const mentorMembership = await GroupMember.findOne({
+    group: group._id,
+    user: userId,
+    role: "mentor",
+  });
+
+  if (!mentorMembership) {
     throw new ApiError(403, "User not authorized to update this goal");
   }
 
@@ -175,7 +195,17 @@ const deleteGoal = asyncHandler(async (req, res) => {
 
   const group = await Group.findById(goal.group);
 
-  if (!group || !group.mentor.equals(userId)) {
+  if (!group) {
+    throw new ApiError(404, "Group not found");
+  }
+
+  const mentorMembership = await GroupMember.findOne({
+    group: group._id,
+    user: userId,
+    role: "mentor",
+  });
+
+  if (!mentorMembership) {
     throw new ApiError(403, "User not authorized to delete this goal");
   }
 

@@ -1,10 +1,11 @@
 import mongoose, { Schema } from "mongoose";
 import bcrypt from "bcrypt";
-import crypto from "crypto";
+import crypto from "node:crypto";
 import {
   generateAccessToken,
   generateRefreshToken,
 } from "../utils/jwt.utils.js";
+import { TokenDefaults } from "../utils/constants.utils.js";
 
 const userSchema = new Schema(
   {
@@ -60,6 +61,10 @@ const userSchema = new Schema(
   { timestamps: true },
 );
 
+userSchema.index({ emailVerificationToken: 1 });
+
+userSchema.index({ forgotPasswordToken: 1 });
+
 userSchema.methods.generateAccessToken = function () {
   return generateAccessToken({
     _id: this._id,
@@ -93,7 +98,7 @@ userSchema.methods.generateTemporaryToken = function () {
     .update(unHashedToken)
     .digest("hex");
 
-  const tokenExpiry = Date.now() + 10 * 60 * 1000; // 10 min
+  const tokenExpiry = Date.now() + TokenDefaults.EMAIL_AND_FORGOT_TOKEN_TTL_MS;
 
   return { unHashedToken, hashedToken, tokenExpiry };
 };

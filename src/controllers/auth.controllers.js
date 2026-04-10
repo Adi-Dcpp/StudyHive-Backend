@@ -8,7 +8,8 @@ import {
   forgotPasswordMailgenContent,
 } from "../utils/mail-template.utils.js";
 import jwt from "jsonwebtoken";
-import crypto from "crypto";
+import crypto from "node:crypto";
+import { TokenDefaults } from "../utils/constants.utils.js";
 
 const isProd = process.env.NODE_ENV === "production";
 
@@ -16,7 +17,7 @@ const refreshTokenCookieOptions = {
   httpOnly: true,
   secure: isProd,
   sameSite: isProd ? "none" : "lax",
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  maxAge: TokenDefaults.REFRESH_COOKIE_MAX_AGE_MS,
 };
 
 const generateRefreshAndAccessToken = async (userId) => {

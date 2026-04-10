@@ -3,7 +3,7 @@ import { ApiResponse } from "../utils/api-response.utils.js";
 import { asyncHandler } from "../utils/async-handler.utils.js";
 import { Group } from "../models/group.models.js";
 import { GroupMember } from "../models/groupMember.models.js";
-import crypto from "crypto";
+import crypto from "node:crypto";
 
 const createGroup = asyncHandler(async (req, res) => {
   const { name, description } = req.body;
@@ -90,11 +90,20 @@ const viewAllJoinedGroup = asyncHandler(async (req, res) => {
     memberCounts.map((entry) => [entry._id.toString(), entry.count]),
   );
 
+  const mentorMemberships = await GroupMember.find({
+    group: { $in: groupIds },
+    role: "mentor",
+  }).select("group user");
+
+  const mentorByGroupId = new Map(
+    mentorMemberships.map((entry) => [entry.group.toString(), entry.user]),
+  );
+
   const result = memberships.map((m) => ({
     groupId: m.group._id,
     name: m.group.name,
     description: m.group.description,
-    mentor: m.group.mentor,
+    mentor: mentorByGroupId.get(m.group._id.toString()) || null,
     membersCount: memberCountMap.get(m.group._id.toString()) || 0,
     role: m.role,
   }));

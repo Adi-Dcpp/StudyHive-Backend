@@ -2,6 +2,7 @@ import multer from "multer";
 import path from "path";
 import { ApiError } from "../utils/api-error.utils.js";
 import os from "os";
+import { RequestLimits } from "../utils/constants.utils.js";
 
 const allowedMimeTypes = [
   "image/jpeg",
@@ -35,7 +36,7 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
   storage,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB
+    fileSize: RequestLimits.FILE_UPLOAD_MAX_BYTES,
   },
   fileFilter,
 });

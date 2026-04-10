@@ -49,9 +49,10 @@ const submitAssignment = asyncHandler(async (req, res) => {
 
   let fileUrl;
   let cloudinaryPublicId;
+  let previousCloudinaryPublicId;
 
-  if (submission && req.file && submission.cloudinaryPublicId) {
-    await cloudinary.uploader.destroy(submission.cloudinaryPublicId);
+  if (submission && req.file) {
+    previousCloudinaryPublicId = submission.cloudinaryPublicId;
   }
 
   if (req.file) {
@@ -78,6 +79,18 @@ const submitAssignment = asyncHandler(async (req, res) => {
     submission.status = "submitted";
     submission.submittedAt = new Date();
     await submission.save();
+
+    if (
+      previousCloudinaryPublicId &&
+      cloudinaryPublicId &&
+      previousCloudinaryPublicId !== cloudinaryPublicId
+    ) {
+      try {
+        await cloudinary.uploader.destroy(previousCloudinaryPublicId);
+      } catch (_error) {
+        // Do not fail submission after successful save because old file cleanup failed.
+      }
+    }
   }
 
   return res.status(201).json(
@@ -115,7 +128,17 @@ const reviewSubmission = asyncHandler(async (req, res) => {
 
   const group = await Group.findById(assignment.groupId);
 
-  if (!group || !group.mentor.equals(userId)) {
+  if (!group) {
+    throw new ApiError(404, "Group not found");
+  }
+
+  const mentorMembership = await GroupMember.findOne({
+    group: assignment.groupId,
+    user: userId,
+    role: "mentor",
+  });
+
+  if (!mentorMembership) {
     throw new ApiError(403, "User not authorized to review this submission");
   }
 
@@ -148,7 +171,17 @@ const getSubmissionsByAssignment = asyncHandler(async (req, res) => {
 
   const group = await Group.findById(assignment.groupId);
 
-  if (!group || !group.mentor.equals(userId)) {
+  if (!group) {
+    throw new ApiError(404, "Group not found");
+  }
+
+  const mentorMembership = await GroupMember.findOne({
+    group: assignment.groupId,
+    user: userId,
+    role: "mentor",
+  });
+
+  if (!mentorMembership) {
     throw new ApiError(403, "User not authorized to view submissions");
   }
 

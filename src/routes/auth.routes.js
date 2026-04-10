@@ -61,6 +61,7 @@ router.get(
 // Resend email verification
 router.post(
   "/resend-email-verification",
+  ipAuthRate,
   emailValidator(),
   validate,
   resendEmailVerification

@@ -2,16 +2,21 @@ import { ApiResponse } from "../utils/api-response.utils.js";
 import { asyncHandler } from "../utils/async-handler.utils.js";
 import { Assignment } from "../models/assignment.models.js";
 import { Goal } from "../models/goal.models.js";
-import { Group } from "../models/group.models.js";
 import { Submission } from "../models/submission.models.js";
 import { GroupMember } from "../models/groupMember.models.js";
 
 const getMentorDashboard = asyncHandler(async (req, res) => {
   const mentorId = req.user._id;
 
-  // Mentor's groups
-  const groups = await Group.find({ mentor: mentorId }).select("_id").lean();
-  const groupIds = groups.map((g) => g._id);
+  // Mentor's groups from membership records (single source of truth)
+  const mentorMemberships = await GroupMember.find({
+    user: mentorId,
+    role: "mentor",
+  })
+    .select("group")
+    .lean();
+
+  const groupIds = mentorMemberships.map((membership) => membership.group);
 
   if (groupIds.length === 0) {
     const stats = {
@@ -25,7 +30,7 @@ const getMentorDashboard = asyncHandler(async (req, res) => {
     return res
       .status(200)
       .json(
-        new ApiResponse(200, stats, "Mentor dashboard fetched successfully"),
+        new ApiResponse(200, "Mentor dashboard fetched successfully", stats),
       );
   }
 
@@ -43,7 +48,7 @@ const getMentorDashboard = asyncHandler(async (req, res) => {
 
   if (goalIds.length === 0) {
     const stats = {
-      groups: groups.length,
+      groups: groupIds.length,
       goals: 0,
       assignments: 0,
       submissions: 0,
@@ -53,7 +58,7 @@ const getMentorDashboard = asyncHandler(async (req, res) => {
     return res
       .status(200)
       .json(
-        new ApiResponse(200, stats, "Mentor dashboard fetched successfully"),
+        new ApiResponse(200, "Mentor dashboard fetched successfully", stats),
       );
   }
 
@@ -65,7 +70,7 @@ const getMentorDashboard = asyncHandler(async (req, res) => {
 
   if (assignmentIds.length === 0) {
     const stats = {
-      groups: groups.length,
+      groups: groupIds.length,
       goals: goals.length,
       assignments: 0,
       submissions: 0,
@@ -75,7 +80,7 @@ const getMentorDashboard = asyncHandler(async (req, res) => {
     return res
       .status(200)
       .json(
-        new ApiResponse(200, stats, "Mentor dashboard fetched successfully"),
+        new ApiResponse(200, "Mentor dashboard fetched successfully", stats),
       );
   }
 
@@ -102,7 +107,7 @@ const getMentorDashboard = asyncHandler(async (req, res) => {
     ]);
 
   const stats = {
-    groups: groups.length,
+    groups: groupIds.length,
     goals: goals.length,
     assignments: assignments.length,
     submissions,
@@ -114,8 +119,8 @@ const getMentorDashboard = asyncHandler(async (req, res) => {
     .json(
       new ApiResponse(
         200,
-        { ...stats, recentSubmissions, recentAssignments },
         "Mentor dashboard fetched successfully",
+        { ...stats, recentSubmissions, recentAssignments },
       ),
     );
 });

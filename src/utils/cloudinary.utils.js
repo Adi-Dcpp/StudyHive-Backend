@@ -1,5 +1,6 @@
 import { v2 as cloudinary } from "cloudinary";
 import fs from "fs";
+import { ApiError } from "./api-error.utils.js";
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -31,7 +32,12 @@ const uploadToCloudinary = async (localFilePath, mimetype) => {
     if (fs.existsSync(localFilePath)) {
       await fs.promises.unlink(localFilePath);
     }
-    throw error;
+
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
+    throw new ApiError(502, error?.message || "Cloudinary upload failed");
   }
 };
 

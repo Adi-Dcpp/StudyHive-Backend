@@ -56,17 +56,17 @@ const resourceSchema = new Schema(
   },
 );
 
-resourceSchema.pre("save", function () {
+resourceSchema.pre("validate", function () {
   if (this.type === "file" && !this.fileUrl) {
-    throw new Error("fileUrl is required when type is 'file'");
+    this.invalidate("fileUrl", "fileUrl is required when type is 'file'");
   }
 
   if (this.type === "link" && !this.linkUrl) {
-    throw new Error("linkUrl is required when type is 'link'");
+    this.invalidate("linkUrl", "linkUrl is required when type is 'link'");
   }
 
   if (this.type === "note" && !this.description) {
-    throw new Error("description is required when type is 'note'");
+    this.invalidate("description", "description is required when type is 'note'");
   }
 });
 

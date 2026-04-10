@@ -234,7 +234,6 @@ const createGroupsAndMembers = async (userMap) => {
       name: groupSpec.name,
       description: groupSpec.description,
       mentor: mentor._id,
-      members: [mentor._id, ...assignedLearners.map((learner) => learner._id)],
       inviteCode,
     });
 
