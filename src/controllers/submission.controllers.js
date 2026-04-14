@@ -7,6 +7,7 @@ import { Submission } from "../models/submission.models.js";
 import { GroupMember } from "../models/groupMember.models.js";
 import { uploadToCloudinary } from "../utils/cloudinary.utils.js";
 import { v2 as cloudinary } from "cloudinary";
+import { getPaginatedData } from "../utils/pagination.utils.js";
 
 const submitAssignment = asyncHandler(async (req, res) => {
   const { assignmentId } = req.params;
@@ -56,7 +57,10 @@ const submitAssignment = asyncHandler(async (req, res) => {
   }
 
   if (req.file) {
-    const uploadResult = await uploadToCloudinary(req.file.path,req.file.mimetype);
+    const uploadResult = await uploadToCloudinary(
+      req.file.path,
+      req.file.mimetype,
+    );
     fileUrl = uploadResult.secureUrl;
     cloudinaryPublicId = uploadResult.publicId;
   }
@@ -163,40 +167,54 @@ const getSubmissionsByAssignment = asyncHandler(async (req, res) => {
   const { assignmentId } = req.params;
   const { _id: userId } = req.user;
 
-  const assignment = await Assignment.findById(assignmentId);
+  const query = { assignmentId };
 
-  if (!assignment || !assignment.isActive) {
+  const assignment = await Assignment.findOne({ _id: assignmentId, isActive: true }).select("groupId");
+
+  if (!assignment) {
     throw new ApiError(404, "Assignment not found or inactive");
   }
 
-  const group = await Group.findById(assignment.groupId);
-
-  if (!group) {
-    throw new ApiError(404, "Group not found");
-  }
-
-  const mentorMembership = await GroupMember.findOne({
+  const isMentor = await GroupMember.exists({
     group: assignment.groupId,
     user: userId,
     role: "mentor",
   });
 
-  if (!mentorMembership) {
+  if (!isMentor) {
     throw new ApiError(403, "User not authorized to view submissions");
   }
 
-  const submissions = await Submission.find({
-    assignmentId,
-  })
+  const total = await Submission.countDocuments(query);
+
+  const { skip, limit, pagination } = getPaginatedData({
+    query: req.query,
+    total,
+  });
+
+  if (!total) {
+    return res.status(200).json(
+      new ApiResponse(200, "No submission found", {
+        submissions: [],
+        pagination,
+      }),
+    );
+  }
+
+  const submissions = await Submission.find(query)
     .populate("userId", "name email")
     .select("userId status submittedAt reviewedAt marksObtained feedback")
-    .sort({ submittedAt: -1 });
+    .sort({ submittedAt: -1 })
+    .skip(skip)
+    .limit(limit)
+    .lean();
 
   return res.status(200).json(
     new ApiResponse(200, "Submissions fetched successfully", {
-      count: submissions.length,
       submissions,
+      pagination,
     }),
   );
 });
+
 export { submitAssignment, reviewSubmission, getSubmissionsByAssignment };

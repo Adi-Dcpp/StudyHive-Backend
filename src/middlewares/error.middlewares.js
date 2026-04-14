@@ -27,23 +27,25 @@ const normalizeError = (err) => {
   }
 
   if (err?.name === "ValidationError") {
-    const extractedErrors = Object.values(err.errors || {}).map((validationErr) => ({
-      field: validationErr.path,
-      message: validationErr.message,
-    }));
+    const extractedErrors = Object.values(err.errors || {}).map(
+      (validationErr) => ({
+        field: validationErr.path,
+        message: validationErr.message,
+      }),
+    );
 
     return new ApiError(400, "Validation failed", extractedErrors);
   }
 
   if (err?.name === "MongoServerError" && err?.code === 11000) {
-  // group membership duplicate
-  if (err.keyPattern?.group && err.keyPattern?.user) {
-    return new ApiError(409, "User is already a member of this group");
-  }
+    // group membership duplicate
+    if (err.keyPattern?.group && err.keyPattern?.user) {
+      return new ApiError(409, "User is already a member of this group");
+    }
 
-  const field = Object.keys(err.keyValue || {})[0] || "field";
-  return new ApiError(409, `${field} already exists`);
-}
+    const field = Object.keys(err.keyValue || {})[0] || "field";
+    return new ApiError(409, `${field} already exists`);
+  }
 
   if (err?.message === "Not allowed by CORS") {
     return new ApiError(403, "CORS origin not allowed");
@@ -65,10 +67,7 @@ const globalErrorHandler = (err, req, res, _next) => {
       method: req.method,
       url: req.originalUrl,
       userId: req.user?.id || null,
-      stack:
-        process.env.NODE_ENV === "production"
-          ? undefined
-          : err.stack,
+      stack: process.env.NODE_ENV === "production" ? undefined : err.stack,
     });
   } else {
     fallbackLogger[logLevel]({

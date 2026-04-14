@@ -38,3 +38,10 @@ export const LoggerPolicy = {
   DEV_LEVEL: "debug",
   PROD_LEVEL: "info",
 };
+
+export const paginationDefaults = {
+  DEFAULT_PAGE: 1,
+  DEFAULT_LIMIT: 20,
+  MAX_LIMIT: 100,
+  MAX_PAGE: 1000,
+};

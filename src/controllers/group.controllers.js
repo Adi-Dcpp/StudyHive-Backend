@@ -1,6 +1,7 @@
 import { ApiError } from "../utils/api-error.utils.js";
 import { ApiResponse } from "../utils/api-response.utils.js";
 import { asyncHandler } from "../utils/async-handler.utils.js";
+import { getPaginatedData } from "../utils/pagination.utils.js";
 import { Group } from "../models/group.models.js";
 import { GroupMember } from "../models/groupMember.models.js";
 import crypto from "node:crypto";
@@ -73,27 +74,57 @@ const joinGroup = asyncHandler(async (req, res) => {
 const viewAllJoinedGroup = asyncHandler(async (req, res) => {
   const userId = req.user._id;
 
-  const memberships = await GroupMember.find({ user: userId }).populate(
-    "group",
-  );
+  //Add Pagination
+  const total = await GroupMember.countDocuments({ user: userId });
+
+  const { skip, limit, pagination } = getPaginatedData({
+    query: req.query,
+    total,
+  });
+
+  if (!total) {
+    return res.status(200).json(
+      new ApiResponse(200, "No groups joined yet", {
+        groups: [],
+        pagination,
+      }),
+    );
+  }
+
+  const memberships = await GroupMember.find({ user: userId })
+    .skip(skip)
+    .limit(limit)
+    .populate("group")
+    .lean();
 
   const groupIds = memberships
     .map((membership) => membership.group?._id)
     .filter(Boolean);
 
-  const memberCounts = await GroupMember.aggregate([
-    { $match: { group: { $in: groupIds } } },
-    { $group: { _id: "$group", count: { $sum: 1 } } },
-  ]);
+  if (groupIds.length === 0) {
+    return res.status(200).json(
+      new ApiResponse(200, "All groups fetched successfully", {
+        groups: [],
+        pagination,
+      }),
+    );
+  }
 
+  const [memberCounts, mentorMemberships] = await Promise.all([
+    GroupMember.aggregate([
+      { $match: { group: { $in: groupIds } } },
+      { $group: { _id: "$group", count: { $sum: 1 } } },
+    ]),
+    GroupMember.find({
+      group: { $in: groupIds },
+      role: "mentor",
+    })
+      .select("group user")
+      .lean(),
+  ]);
   const memberCountMap = new Map(
     memberCounts.map((entry) => [entry._id.toString(), entry.count]),
   );
-
-  const mentorMemberships = await GroupMember.find({
-    group: { $in: groupIds },
-    role: "mentor",
-  }).select("group user");
 
   const mentorByGroupId = new Map(
     mentorMemberships.map((entry) => [entry.group.toString(), entry.user]),
@@ -108,9 +139,12 @@ const viewAllJoinedGroup = asyncHandler(async (req, res) => {
     role: m.role,
   }));
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, "All groups fetched successfully", result));
+  return res.status(200).json(
+    new ApiResponse(200, "All groups fetched successfully", {
+      groups: result,
+      pagination,
+    }),
+  );
 });
 
 const getGroupDetails = asyncHandler(async (req, res) => {
@@ -204,7 +238,7 @@ const deleteGroup = asyncHandler(async (req, res) => {
 
   return res
     .status(200)
-    .json(new ApiResponse(200, "Group deleted Successfully", {groupId}));
+    .json(new ApiResponse(200, "Group deleted Successfully", { groupId }));
 });
 
 const inviteMembers = asyncHandler(async (req, res) => {
@@ -246,10 +280,28 @@ const viewGroupMembers = asyncHandler(async (req, res) => {
     throw new ApiError(403, "Not authorized to get members data");
   }
 
-  const memberships = await GroupMember.find({ group: groupId }).populate(
-    "user",
-    "name email",
-  );
+  //Add Pagination
+  const total = await GroupMember.countDocuments({ group: groupId });
+
+  const { skip, limit, pagination } = getPaginatedData({
+    query: req.query,
+    total,
+  });
+
+  if (!total) {
+    return res.status(200).json(
+      new ApiResponse(200, "No members in the group yet", {
+        members: [],
+        pagination,
+      }),
+    );
+  }
+
+  const memberships = await GroupMember.find({ group: groupId })
+    .skip(skip)
+    .limit(limit)
+    .populate("user", "name email")
+    .lean();
 
   const result = memberships.map((m) => ({
     userId: m.user._id,
@@ -261,7 +313,12 @@ const viewGroupMembers = asyncHandler(async (req, res) => {
 
   return res
     .status(200)
-    .json(new ApiResponse(200, "Members data fetched successfully", result));
+    .json(
+      new ApiResponse(200, "Members data fetched successfully", {
+        members: result,
+        pagination,
+      }),
+    );
 });
 
 const removeGroupMembers = asyncHandler(async (req, res) => {
@@ -295,7 +352,7 @@ const removeGroupMembers = asyncHandler(async (req, res) => {
     new ApiResponse(200, "Member removed successfully", {
       groupId,
       removedUserId: targetUserId,
-    })
+    }),
   );
 });
 

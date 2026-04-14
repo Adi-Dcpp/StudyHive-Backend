@@ -4,6 +4,7 @@ import { ApiResponse } from "../utils/api-response.utils.js";
 import { Group } from "../models/group.models.js";
 import { GroupMember } from "../models/groupMember.models.js";
 import { Goal } from "../models/goal.models.js";
+import { getPaginatedData } from "../utils/pagination.utils.js";
 
 const createGoal = asyncHandler(async (req, res) => {
   const { groupId } = req.params;
@@ -69,9 +70,8 @@ const getGoalsByGroup = asyncHandler(async (req, res) => {
   const { groupId } = req.params;
   const { _id: userId } = req.user;
 
-  const group = await Group.findById(groupId);
-
-  if (!group) {
+  const groupExists = await Group.exists({ _id: groupId });
+  if (!groupExists) {
     throw new ApiError(404, "Group not found");
   }
 
@@ -81,37 +81,91 @@ const getGoalsByGroup = asyncHandler(async (req, res) => {
     role: "mentor",
   });
 
-  const isAssignedLearner = await Goal.exists({
-    group: groupId,
-    assignedTo: userId,
+  const query = isMentor
+    ? { group: groupId }
+    : { group: groupId, assignedTo: userId };
+
+  if (!isMentor) {
+    const isMember = await GroupMember.exists({
+      group: groupId,
+      user: userId,
+    });
+
+    if (!isMember) {
+      throw new ApiError(
+        403,
+        "User is not authorised to view goals of this group",
+      );
+    }
+  }
+
+  const total = await Goal.countDocuments(query);
+
+  const { skip, limit, pagination } = getPaginatedData({
+    query: req.query,
+    total,
   });
 
-  if (!isMentor && !isAssignedLearner) {
-    throw new ApiError(
-      403,
-      "User is not authorised to view goals of this group",
+  if (!total) {
+    return res.status(200).json(
+      new ApiResponse(200, "No Goals found", {
+        goals: [],
+        pagination,
+      }),
     );
   }
 
-  const goals = await Goal.find({ group: groupId })
+  const goals = await Goal.find(query)
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit)
     .populate("assignedTo", "name email")
-    .populate("createdBy", "name email");
+    .populate("createdBy", "name email")
+    .lean();
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, "Goals fetched successfully", goals));
+  return res.status(200).json(
+    new ApiResponse(200, "Goals fetched successfully", {
+      goals,
+      pagination,
+    }),
+  );
 });
 
 const getMyGoals = asyncHandler(async (req, res) => {
   const { _id: userId } = req.user;
 
-  const goals = await Goal.find({ assignedTo: userId })
-    .populate("group", "name email")
-    .populate("createdBy", "name email");
+  const query = { assignedTo: userId };
+  
+  const total = await Goal.countDocuments(query);
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, "My goals fetched successfully", goals));
+  const { skip, limit, pagination } = getPaginatedData({
+    query: req.query,
+    total,
+  });
+
+  if (!total) {
+    return res.status(200).json(
+      new ApiResponse(200, "No Goals assigned to you yet", {
+        goals: [],
+        pagination,
+      })
+    );
+  }
+
+  const goals = await Goal.find(query)
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit)
+    .populate("group", "name")
+    .populate("createdBy", "name email")
+    .lean();
+
+  return res.status(200).json(
+    new ApiResponse(200, "My goals fetched successfully", {
+      goals,
+      pagination,
+    })
+  );
 });
 
 const updateGoal = asyncHandler(async (req, res) => {

@@ -5,6 +5,7 @@ import { Assignment } from "../models/assignment.models.js";
 import { Goal } from "../models/goal.models.js";
 import { Group } from "../models/group.models.js";
 import { GroupMember } from "../models/groupMember.models.js";
+import { getPaginatedData } from "../utils/pagination.utils.js";
 
 const createAssignment = asyncHandler(async (req, res) => {
   const { goalId } = req.params;
@@ -59,20 +60,53 @@ const createAssignment = asyncHandler(async (req, res) => {
 
 const getAssignmentsByGoal = asyncHandler(async (req, res) => {
   const { goalId } = req.params;
+  const { _id: userId } = req.user;
 
-  const assignments = await Assignment.find({ goalId, isActive: true }).select(
-    "title deadline",
-  );
-
-  if (!assignments) {
-    throw new ApiError(404, "Failed to get the assignments");
+  const goal = await Goal.findById(goalId);
+  if (!goal) {
+    throw new ApiError(404, "Goal not found");
   }
 
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(200, "Assignment data fetched successfully", assignments),
+  const isMember = await GroupMember.exists({
+    group: goal.group,
+    user: userId,
+  });
+
+  if (!isMember) {
+    throw new ApiError(403, "Not authorized to view assignments");
+  }
+
+  const query = { goalId, isActive: true };
+
+  const total = await Assignment.countDocuments(query);
+
+  const { skip, limit, pagination } = getPaginatedData({
+    query: req.query,
+    total,
+  });
+
+  if (!total) {
+    return res.status(200).json(
+      new ApiResponse(200, "No assignments found for the goal", {
+        assignments: [],
+        pagination,
+      })
     );
+  }
+
+  const assignments = await Assignment.find(query)
+    .select("title deadline")
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit)
+    .lean();
+
+  return res.status(200).json(
+    new ApiResponse(200, "Assignment data fetched successfully", {
+      assignments,
+      pagination,
+    })
+  );
 });
 
 const updateAssignment = asyncHandler(async (req, res) => {
