@@ -9,6 +9,8 @@ import {
   inviteMembers,
   viewGroupMembers,
   removeGroupMembers,
+  leaveGroup,
+  regenerateInviteCode,
 } from "../controllers/group.controllers.js";
 
 import { verifyJwt } from "../middlewares/auth.middlewares.js";
@@ -24,6 +26,8 @@ import {
   inviteMembersValidator,
   viewGroupMembersValidator,
   removeGroupMembersValidator,
+  leaveGroupValidator,
+  regenerateInviteCodeValidator,
 } from "../validators/group.validators.js";
 
 const router = Router();
@@ -106,6 +110,25 @@ router.delete(
   deleteGroupValidator(),
   validate,
   deleteGroup,
+);
+
+// Leave Group
+router.post(
+  "/:groupId/leave",
+  verifyJwt,
+  leaveGroupValidator(),
+  validate,
+  leaveGroup,
+);
+
+// Regenerate Invite Code
+router.patch(
+  "/:groupId/invite/regenerate",
+  verifyJwt,
+  authorizeRoles("mentor"),
+  regenerateInviteCodeValidator(),
+  validate,
+  regenerateInviteCode,
 );
 
 export default router;

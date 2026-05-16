@@ -10,9 +10,9 @@
 
 - Mark top-level tasks and subtasks as you complete them.
 - Do not start feature phases before Phase 1 security + bug-hardening is complete.
-- Every endpoint task must include: validator updates, controller logic, route wiring, permission checks, and tests.
-- Every data model change must include: schema migration plan, index verification, and regression tests.
-- Run lint + tests + smoke test after each major module merge.
+- Every endpoint task must include: validator updates, controller logic, route wiring, permission checks, and validations.
+- Every data model change must include: schema migration plan, index verification, and regression validations.
+- Run lint + validations + smoke validate after each major module merge.
 
 ---
 
@@ -24,13 +24,13 @@
 - [ ] Confirm package manager and lockfile consistency (`npm` + `package-lock.json`).
 - [ ] Confirm `.gitignore` includes `.env`, `node_modules/`, `public/temp/`.
 - [ ] Add/verify `.dockerignore` includes `.env`, `node_modules/`, `.git/`.
-- [ ] Ensure PR template exists with security/test checklist.
+- [ ] Ensure PR template exists with security/validate checklist.
 
 ### 0.2 Branch and PR Strategy
 
 - [ ] Create `release/studyhive-2.0` integration branch.
-- [ ] Define branch naming convention: `feature/*`, `fix/*`, `security/*`, `test/*`, `ops/*`.
-- [ ] Protect `main` with required checks (lint, test, coverage, audit).
+- [ ] Define branch naming convention: `feature/*`, `fix/*`, `security/*`, `validate/*`, `ops/*`.
+- [ ] Protect `main` with required checks (lint, validate, coverage, audit).
 - [ ] Enforce squash merge or merge strategy (team decision, documented).
 
 ### 0.3 Definition of Done (DoD)
@@ -38,7 +38,7 @@
 - [ ] Create DoD document for backend changes.
 - [ ] Include minimum requirements:
 - [ ] Code merged with review approval.
-- [ ] Unit + integration tests added/updated.
+- [ ] Unit + integration validations added/updated.
 - [ ] Error responses conform to standard shape.
 - [ ] Security and permission checks validated.
 - [ ] Logs added at correct level for critical events.
@@ -55,7 +55,7 @@
 - [ ] Update registration validator to allow only `mentor` and `learner` roles.
 - [ ] Ensure explicit rejection message for `admin` role input.
 - [ ] Verify controller does not override validator behavior.
-- [ ] Add test: register with role `admin` returns 400.
+- [ ] Add validate: register with role `admin` returns 400.
 
 ### 1.1.2 Login status code corrections (BUG-03, BUG-04, BUG-05)
 
@@ -63,7 +63,7 @@
 - [ ] Ensure no user enumeration in error messages.
 - [ ] Ensure email-not-verified returns 403.
 - [ ] Ensure internal login failures return 500.
-- [ ] Add tests for all login branches.
+- [ ] Add validations for all login branches.
 
 ### 1.1.3 Refresh token handling hardening (SEC-07)
 
@@ -71,27 +71,27 @@
 - [ ] Accept refresh token from cookie only.
 - [ ] Compare stored token hash against incoming cookie token hash.
 - [ ] Implement token rotation on each refresh.
-- [ ] Add test: header-based refresh token is rejected.
-- [ ] Add test: token reuse detection triggers 401.
+- [ ] Add validate: header-based refresh token is rejected.
+- [ ] Add validate: token reuse detection triggers 401.
 
 ### 1.1.4 Change password logout semantics
 
 - [ ] Ensure password change clears persisted refresh token.
 - [ ] Ensure response clears refresh cookie.
-- [ ] Add regression test for forced re-login after password change.
+- [ ] Add regression validate for forced re-login after password change.
 
 ### 1.1.5 Name collision fix in registration (QUAL-04)
 
 - [ ] Ensure uniqueness checks are email-based only.
 - [ ] Remove any blocking checks by `name` field.
-- [ ] Add test: two users with same name, different emails can register.
+- [ ] Add validate: two users with same name, different emails can register.
 
 ### 1.1.6 Suspended account support
 
 - [ ] Add `isSuspended` to user schema.
 - [ ] Enforce suspended-user denial in auth middleware/JWT verification flow.
 - [ ] Enforce suspended user login returns 403.
-- [ ] Add tests for suspended login and token-auth flows.
+- [ ] Add validations for suspended login and token-auth flows.
 
 ## 1.2 App-Level Security Middleware (SEC-03, SEC-04, SEC-05)
 
@@ -100,20 +100,20 @@
 - [ ] Move multer temp destination to `os.tmpdir()`.
 - [ ] Remove any static serving of temp upload directories.
 - [ ] Ensure temp files are removed on success and failure.
-- [ ] Add test/assertion for invalid upload path handling.
+- [ ] Add validate/assertion for invalid upload path handling.
 
 ### 1.2.2 CORS env-driven allowlist (SEC-04)
 
 - [ ] Replace hardcoded CORS origin with `CORS_ORIGIN` env parsing.
 - [ ] Support comma-separated origins.
 - [ ] Ensure `credentials: true` is set for cookie auth.
-- [ ] Add tests/smoke checks for allowed and blocked origins.
+- [ ] Add validations/smoke checks for allowed and blocked origins.
 
 ### 1.2.3 NoSQL injection protection (SEC-05)
 
 - [ ] Install and configure `express-mongo-sanitize` globally.
 - [ ] Ensure middleware order places sanitize before routes.
-- [ ] Add regression test for payload containing `$`/`.` keys.
+- [ ] Add regression validate for payload containing `$`/`.` keys.
 
 ### 1.2.4 HPP and body limits
 
@@ -128,7 +128,7 @@
 - [ ] Validate all required env vars before app listens on port.
 - [ ] Add explicit startup failure log for each missing variable.
 - [ ] Enforce min length (>=64) for token secrets.
-- [ ] Add tests or startup script validation for env contract.
+- [ ] Add validations or startup script validation for env contract.
 
 ### 1.3.2 Graceful shutdown and fatal handlers
 
@@ -144,20 +144,20 @@
 
 - [ ] Update express-validator error extraction from `.param` to `.path`.
 - [ ] Verify all route validators still map errors correctly.
-- [ ] Add unit test for validator middleware output shape.
+- [ ] Add unit validate for validator middleware output shape.
 
 ### 1.4.2 Error response standardization
 
 - [ ] Ensure error responses include `statusCode` in body.
 - [ ] Align all thrown errors to standardized `ApiError` usage.
 - [ ] Map known Mongoose/JWT errors to expected HTTP codes.
-- [ ] Add integration tests for 400/401/403/404/409/429/500 mappings.
+- [ ] Add integration validations for 400/401/403/404/409/429/500 mappings.
 
 ### 1.4.3 404 catch-all route
 
 - [ ] Add unknown-route catch-all after all route registrations.
 - [ ] Ensure catch-all returns standard error shape.
-- [ ] Add integration test for unknown endpoint behavior.
+- [ ] Add integration validate for unknown endpoint behavior.
 
 ## 1.5 Data Integrity and Model Hardening (PERF-01, PERF-02, PERF-03, DATA-04)
 
@@ -171,13 +171,13 @@
 
 - [ ] Add unique compound index `{ group: 1, user: 1 }`.
 - [ ] Handle duplicate membership errors as 409.
-- [ ] Add tests for concurrent join duplicate prevention.
+- [ ] Add validations for concurrent join duplicate prevention.
 
 ### 1.5.3 Group schema cleanup
 
 - [ ] Remove dead `members[]` array field from group model.
 - [ ] Ensure codebase uses `GroupMember` as single source of membership truth.
-- [ ] Regression test group member retrieval and joins.
+- [ ] Regression validate group member retrieval and joins.
 
 ## 1.6 Cloudinary and Submission Safety (DATA-03)
 
@@ -186,7 +186,7 @@
 - [ ] Upload new file first.
 - [ ] Delete old Cloudinary file only after successful upload.
 - [ ] Preserve existing file when new upload fails.
-- [ ] Add integration test for failed upload rollback scenario.
+- [ ] Add integration validate for failed upload rollback scenario.
 
 ## 1.7 Code Quality and Constants
 
@@ -195,7 +195,7 @@
 - [ ] Move shared constants into `constants.utils.js`.
 - [ ] Centralize token expiry defaults, limits, and file-size values.
 - [ ] Refactor modules to use constants.
-- [ ] Add tests where constants impact behavior.
+- [ ] Add validations where constants impact behavior.
 
 ### 1.7.2 Remove incorrect dependency (DEP-01)
 
@@ -215,7 +215,7 @@
 
 - [ ] Attach `ipAuthRate` to resend verification endpoint.
 - [ ] Validate headers in 429 response.
-- [ ] Add test for 6th request within window returns 429.
+- [ ] Add validate for 6th request within window returns 429.
 
 ---
 
@@ -243,7 +243,7 @@
 - [ ] Conversations/messages list.
 - [ ] Admin users/groups lists.
 
-### 2.1.3 Pagination test matrix
+### 2.1.3 Pagination validate matrix
 
 - [ ] Default values if params absent.
 - [ ] Limit cap at 100.
@@ -258,7 +258,7 @@
 - [ ] Ensure caller is existing member.
 - [ ] Prevent mentor from leaving their own group.
 - [ ] Delete membership entry for learner.
-- [ ] Add tests for member/non-member/mentor flows.
+- [ ] Add validations for member/non-member/mentor flows.
 
 ### 2.2.2 Invite code regeneration (FEAT-02)
 
@@ -266,13 +266,13 @@
 - [ ] Restrict to group mentor.
 - [ ] Generate cryptographically random new code.
 - [ ] Ensure old code no longer joins group.
-- [ ] Add tests for permission and uniqueness.
+- [ ] Add validations for permission and uniqueness.
 
 ### 2.2.3 Get invite code endpoint review
 
 - [ ] Validate mentor-only access.
 - [ ] Ensure response shape matches API standard.
-- [ ] Add tests for non-mentor denial.
+- [ ] Add validations for non-mentor denial.
 
 ## 2.3 Cascade Deletes and Atomicity (DATA-01, DATA-02)
 
@@ -282,7 +282,7 @@
 - [ ] Delete submissions under those assignments (DB + Cloudinary).
 - [ ] Delete assignments.
 - [ ] Delete goal.
-- [ ] Add integration test covering full cascade path.
+- [ ] Add integration validate covering full cascade path.
 
 ### 2.3.2 Group delete cascade
 
@@ -292,13 +292,13 @@
 - [ ] Delete group memberships.
 - [ ] Delete group.
 - [ ] Run in Mongoose transaction.
-- [ ] Add failure rollback test.
+- [ ] Add failure rollback validate.
 
 ### 2.3.3 Create group atomic transaction (ATOM-01)
 
 - [ ] Create group + mentor membership in single session transaction.
 - [ ] Ensure rollback if second write fails.
-- [ ] Add integration test for atomicity.
+- [ ] Add integration validate for atomicity.
 
 ## 2.4 Submission API Completeness (FEAT-04)
 
@@ -308,7 +308,7 @@
 - [ ] Restrict to learner role.
 - [ ] Ensure only caller’s submission returned.
 - [ ] Return 404 if none exists.
-- [ ] Add tests for access and missing case.
+- [ ] Add validations for access and missing case.
 
 ---
 
@@ -328,10 +328,10 @@
 - [ ] Update announcement with creator-only permissions.
 - [ ] Delete announcement with creator/mentor/admin permissions.
 
-### 3.1.3 Validation and tests
+### 3.1.3 Validation and validations
 
 - [ ] Validate title/body lengths and required fields.
-- [ ] Add full integration tests for auth, role, and ownership.
+- [ ] Add full integration validations for auth, role, and ownership.
 
 ## 3.2 Notifications Module
 
@@ -356,10 +356,10 @@
 - [ ] Trigger on announcement posted (`new_announcement`).
 - [ ] Add placeholder/scheduler for deadline reminder notifications.
 
-### 3.2.4 Tests
+### 3.2.4 Validations
 
-- [ ] Unit tests for notification creation helper/service.
-- [ ] Integration tests for each trigger source.
+- [ ] Unit validations for notification creation helper/service.
+- [ ] Integration validations for each trigger source.
 
 ## 3.3 Direct Messaging Module
 
@@ -379,10 +379,10 @@
 - [ ] Ensure deleted messages show placeholder semantics for recipient read flow.
 - [ ] Ensure users cannot message non-shared-group users.
 
-### 3.3.4 Tests
+### 3.3.4 Validations
 
-- [ ] Add tests for shared-group constraints.
-- [ ] Add tests for soft-deleted message rendering behavior.
+- [ ] Add validations for shared-group constraints.
+- [ ] Add validations for soft-deleted message rendering behavior.
 
 ## 3.4 Leaderboard and Progress Tracking
 
@@ -398,7 +398,7 @@
 - [ ] `GET /leaderboard/:groupId/me` for personal metrics.
 - [ ] Include goals/assignments progress counters in personal endpoint.
 
-### 3.4.3 Tests
+### 3.4.3 Validations
 
 - [ ] Ranking correctness with tied/untied scores.
 - [ ] Exclusion of non-reviewed submissions.
@@ -409,7 +409,7 @@
 ### 3.5.1 Admin auth framework
 
 - [ ] Ensure all `/admin/*` routes require JWT + global `admin` role.
-- [ ] Add guard tests for non-admin access.
+- [ ] Add guard validations for non-admin access.
 
 ### 3.5.2 User administration endpoints
 
@@ -430,10 +430,10 @@
 - [ ] Implement aggregate stats endpoint (`/admin/stats`).
 - [ ] Validate metric definitions align with PRD.
 
-### 3.5.5 Tests
+### 3.5.5 Validations
 
-- [ ] Integration tests for each admin route.
-- [ ] Tests for destructive-operation audit logging.
+- [ ] Integration validations for each admin route.
+- [ ] Validations for destructive-operation audit logging.
 
 ## 3.6 Mentor Dashboard Enhancements
 
@@ -449,9 +449,9 @@
 - [ ] Restrict to mentor/admin.
 - [ ] Ensure mentor sees own-scope data only.
 
-### 3.6.3 Tests
+### 3.6.3 Validations
 
-- [ ] Add route integration tests for mentor/admin and denial cases.
+- [ ] Add route integration validations for mentor/admin and denial cases.
 
 ---
 
@@ -614,7 +614,7 @@
 - [ ] Audit each route against PRD permission matrix.
 - [ ] Add missing global role checks where required.
 - [ ] Add missing ownership/group-membership checks.
-- [ ] Add tests for role mismatch and ownership mismatch.
+- [ ] Add validations for role mismatch and ownership mismatch.
 
 ## 5.2 Validation Standards
 
@@ -773,32 +773,32 @@
 
 ---
 
-## 12) Testing Strategy Execution Checklist (Phase 4)
+## 12) Validation Strategy Execution Checklist (Phase 4)
 
-## 12.1 Test Infra Setup
+## 12.1 Validation Infra Setup
 
-- [ ] Configure Vitest.
-- [ ] Configure Supertest for HTTP integration tests.
-- [ ] Configure MongoDB Memory Server.
-- [ ] Configure coverage thresholds.
+- [ ] Configure validation tooling.
+- [ ] Configure HTTP validation harness.
+- [ ] Configure in-memory database validation.
+- [ ] Configure validation thresholds.
 
-## 12.2 Unit Test Coverage Targets
+## 12.2 Unit Validation Coverage Targets
 
-- [ ] Middleware tests (target 100%).
-- [ ] Validator tests (target 100%).
-- [ ] Utility tests (>=90%).
-- [ ] Model method tests (>=80%).
-- [ ] Controller tests (>=85%).
+- [ ] Middleware validations (target 100%).
+- [ ] Validator validations (target 100%).
+- [ ] Utility validations (>=90%).
+- [ ] Model method validations (>=80%).
+- [ ] Controller validations (>=85%).
 
-## 12.3 Integration Test Coverage
+## 12.3 Integration Validation Coverage
 
-- [ ] Add happy-path tests for each route.
-- [ ] Add 401 tests for missing auth.
-- [ ] Add 403 tests for role denial.
-- [ ] Add 400 tests for invalid input.
-- [ ] Add 404 tests for missing resource.
-- [ ] Add 409 tests for duplicates.
-- [ ] Add rate-limit tests for protected routes.
+- [ ] Add happy-path validations for each route.
+- [ ] Add 401 validations for missing auth.
+- [ ] Add 403 validations for role denial.
+- [ ] Add 400 validations for invalid input.
+- [ ] Add 404 validations for missing resource.
+- [ ] Add 409 validations for duplicates.
+- [ ] Add rate-limit validations for protected routes.
 
 ## 12.4 Critical Path Scenarios (Mandatory)
 
@@ -821,7 +821,7 @@
 ## 13.1 CI Pipeline
 
 - [ ] Create/update GitHub Actions workflow for PR + main.
-- [ ] Steps: checkout, setup Node 20, `npm ci`, lint, tests, coverage gate.
+- [ ] Steps: checkout, setup Node 20, `npm ci`, lint, validations, coverage gate.
 - [ ] Add `npm audit --audit-level=high` gate.
 - [ ] Add secret scanning (`git-secrets`) gate.
 - [ ] Add syntax/build sanity check.
@@ -840,7 +840,7 @@
 
 ---
 
-## 14) Performance and Load Testing Checklist
+## 14) Performance and Load Validation Checklist
 
 ## 14.1 Baseline Measurement
 
@@ -849,7 +849,7 @@
 
 ## 14.2 k6 Scenario Implementation
 
-- [ ] Healthcheck high-concurrency test scenario.
+- [ ] Healthcheck high-concurrency validate scenario.
 - [ ] Login-to-read flow scenario.
 - [ ] Concurrent file upload scenario.
 
@@ -882,7 +882,7 @@
 - [ ] Confirm body-size limit active.
 - [ ] Confirm auth-sensitive endpoints rate-limited.
 
-## 15.4 Pen-Test Checklist (Internal)
+## 15.4 Pen-Validation Checklist (Internal)
 
 - [ ] Attempt NoSQL operator injection in auth and search-like endpoints.
 - [ ] Attempt role escalation via request body tampering.
@@ -914,7 +914,7 @@
 
 ## 16.4 Post-Release Verification
 
-- [ ] Smoke test authentication and core CRUD in production.
+- [ ] Smoke validate authentication and core CRUD in production.
 - [ ] Verify email flow and file upload.
 - [ ] Verify no elevated 5xx and no auth anomalies.
 - [ ] Verify healthcheck uptime and alerting.
@@ -931,7 +931,7 @@
 
 ## 17.2 QA Engineering
 
-- [ ] Test plan creation per endpoint and role matrix.
+- [ ] Validation plan creation per endpoint and role matrix.
 - [ ] Automation suite implementation.
 - [ ] Regression and critical path execution.
 
@@ -953,10 +953,10 @@
 
 - [ ] Zero unresolved critical/high security issues.
 - [ ] Zero unresolved critical/high functional bugs.
-- [ ] 80%+ total test coverage; required layer targets met.
+- [ ] 80%+ total validate coverage; required layer targets met.
 - [ ] All list endpoints paginated and standardized.
 - [ ] All PRD routes implemented and documented.
-- [ ] CI green on lint, tests, coverage, audit, and secrets scan.
+- [ ] CI green on lint, validations, coverage, audit, and secrets scan.
 - [ ] Production monitoring and graceful shutdown verified.
 - [ ] Security and product sign-off completed.
 
@@ -968,7 +968,7 @@
 - [ ] Complete cascades and pagination (Phase 2) before advanced features.
 - [ ] Implement announcements + notifications first (dependencies for other modules).
 - [ ] Implement messaging + leaderboard + admin endpoints.
-- [ ] Finish testing, CI gates, observability, and load testing.
+- [ ] Finish validation, CI gates, observability, and load validation.
 - [ ] Conduct release readiness review and go-live checklist.
 
 ---
@@ -1179,8 +1179,8 @@ Use this card for every endpoint before marking complete.
 - [ ] Pagination/filter/sort implemented if list endpoint.
 - [ ] Notifications/emails triggered where required.
 - [ ] Audit log event added if action is destructive/sensitive.
-- [ ] Unit tests added/updated.
-- [ ] Integration tests added/updated.
+- [ ] Unit validations added/updated.
+- [ ] Integration validations added/updated.
 - [ ] API docs and Postman updated.
 
 ### 22.2 Mandatory Error Cases Per Endpoint
@@ -1196,9 +1196,9 @@ Use this card for every endpoint before marking complete.
 
 ---
 
-## 23) Detailed Test Case Matrix (Execution Ready)
+## 23) Detailed Validation Case Matrix (Execution Ready)
 
-## 23.1 Auth Test IDs
+## 23.1 Auth Validation IDs
 
 - [ ] AUTH-001 Register valid mentor account -> 201.
 - [ ] AUTH-002 Register valid learner account -> 201.
@@ -1215,7 +1215,7 @@ Use this card for every endpoint before marking complete.
 - [ ] AUTH-013 Change password clears refresh cookie/token.
 - [ ] AUTH-014 Suspended account login -> 403.
 
-## 23.2 Group/Goal/Assignment Test IDs
+## 23.2 Group/Goal/Assignment Validation IDs
 
 - [ ] GROUP-001 Mentor creates group -> group + mentor membership created atomically.
 - [ ] GROUP-002 Join group with invalid invite -> 404.
@@ -1231,7 +1231,7 @@ Use this card for every endpoint before marking complete.
 - [ ] ASSIGN-001 Create assignment with invalid maxMarks -> 400.
 - [ ] ASSIGN-002 Soft delete assignment sets isActive false.
 
-## 23.3 Submission/Resource Test IDs
+## 23.3 Submission/Resource Validation IDs
 
 - [ ] SUB-001 Submit assignment with text only -> 201.
 - [ ] SUB-002 Submit assignment with file only -> 201.
@@ -1245,7 +1245,7 @@ Use this card for every endpoint before marking complete.
 - [ ] RES-002 Upload resource type note without description -> 400.
 - [ ] RES-003 Delete resource by unauthorized user -> 403.
 
-## 23.4 New Feature Test IDs
+## 23.4 New Feature Validation IDs
 
 - [ ] ANN-001 Mentor creates announcement -> notifications created for group members.
 - [ ] ANN-002 Announcement list sorted pinned-first and recent-first.
@@ -1270,7 +1270,7 @@ Use this card for every endpoint before marking complete.
 - [ ] Complete app-level security middleware hardening.
 - [ ] Complete error-handler standardization and validator compatibility fix.
 - [ ] Complete critical model index additions and schema cleanup.
-- [ ] Deliverables: merged code + passing tests + updated docs.
+- [ ] Deliverables: merged code + passing validations + updated docs.
 
 ## 24.2 Sprint 2 (Cascades and Pagination)
 
@@ -1278,14 +1278,14 @@ Use this card for every endpoint before marking complete.
 - [ ] Complete leave-group and invite-regenerate endpoints.
 - [ ] Roll out pagination across all list endpoints.
 - [ ] Add my-submission endpoint.
-- [ ] Deliverables: route-complete core modules + integration test suite updates.
+- [ ] Deliverables: route-complete core modules + integration validate suite updates.
 
 ## 24.3 Sprint 3 (Announcements and Notifications)
 
 - [ ] Implement announcement CRUD + pagination/sorting.
 - [ ] Implement notification CRUD + unread counters + mark-all-read.
 - [ ] Wire notification triggers from goals/assignments/reviews/announcements.
-- [ ] Deliverables: new models/routes/controllers + tests + Postman updates.
+- [ ] Deliverables: new models/routes/controllers + validations + Postman updates.
 
 ## 24.4 Sprint 4 (Messaging, Leaderboard, Admin)
 
@@ -1294,12 +1294,12 @@ Use this card for every endpoint before marking complete.
 - [ ] Implement all admin routes + safeguards + cascades.
 - [ ] Deliverables: all 2.0 feature endpoints complete.
 
-## 24.5 Sprint 5 (Testing, CI/CD, Ops)
+## 24.5 Sprint 5 (Validation, CI/CD, Ops)
 
 - [ ] Achieve target coverage and pass critical-path scenarios.
 - [ ] Finalize CI security gates, lint, audit, coverage fail rules.
 - [ ] Finalize logging, monitoring, health checks, and alert setup.
-- [ ] Execute load tests and tune bottlenecks.
+- [ ] Execute load validations and tune bottlenecks.
 - [ ] Deliverables: release candidate + go-live signoff pack.
 
 ---

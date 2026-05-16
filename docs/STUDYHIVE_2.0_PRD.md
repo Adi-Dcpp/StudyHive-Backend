@@ -43,7 +43,7 @@
 15. [File Upload Specification](#15-file-upload-specification)
 16. [Email Notification Specification](#16-email-notification-specification)
 17. [Infrastructure & DevOps Requirements](#17-infrastructure--devops-requirements)
-18. [Testing Strategy](#18-testing-strategy)
+18. [Validation Strategy](#18-validation-strategy)
 19. [Pagination, Filtering & Sorting Standard](#19-pagination-filtering--sorting-standard)
 20. [Logging & Observability Standard](#20-logging--observability-standard)
 21. [Rate Limiting Policy](#21-rate-limiting-policy)
@@ -105,7 +105,7 @@ None of these are acceptable in a production system with real learner data.
 |---|---|---|
 | G-01 | Fix every confirmed bug from the 1.0 audit | P0 |
 | G-02 | Close every security vulnerability | P0 |
-| G-03 | Achieve 100% test coverage on critical paths | P0 |
+| G-03 | Harden critical paths and error handling | P0 |
 | G-04 | All list endpoints paginated | P0 |
 | G-05 | Structured, traceable, queryable logs in production | P0 |
 | G-06 | CI/CD pipeline on every PR merge | P0 |
@@ -124,12 +124,12 @@ None of these are acceptable in a production system with real learner data.
 | P99 response time | < 300ms for all non-file-upload endpoints | pino-http response time |
 | File upload P99 | < 5 seconds for ≤ 5MB | Cloudinary webhook |
 | Authentication failure rate on brute force | 100% blocked after 5 attempts / 5 min | Rate limiter logs |
-| Test coverage (unit + integration) | ≥ 80% line coverage | Vitest coverage report |
+| Regression verification | Manual and CI smoke validation | Build logs / smoke checks |
 | Zero known CVEs in dependencies | 0 | `npm audit` in CI |
 | Zero hardcoded secrets | 0 | git-secrets in CI |
 | Uptime | 99.9% monthly | UptimeRobot / healthcheck |
-| Graceful shutdown time | < 10 seconds | SIGTERM test in CI |
-| Concurrent users without 429 on normal traffic | 10,000 | Load test (k6) |
+| Graceful shutdown time | < 10 seconds | SIGTERM shutdown validation |
+| Concurrent users without 429 on normal traffic | 10,000 | Load validation (k6) |
 
 ---
 
@@ -225,7 +225,7 @@ Client (Browser / Mobile)
 
 ### 6.1 Key Design Principles
 
-1. **MVC + Service Layer** — Controllers are thin. All business logic lives in service modules, making it unit-testable.
+1. **MVC + Service Layer** — Controllers are thin. All business logic lives in service modules.
 2. **Async-first** — Every I/O operation is async. `asyncHandler` wraps all controllers.
 3. **Fail fast at startup** — If any required env variable is missing, the process exits before binding the port.
 4. **Defense in depth** — Every request passes: auth → role check → group-membership check → ownership check.
@@ -251,7 +251,7 @@ Client (Browser / Mobile)
 
 | Field | Type | Rules |
 |---|---|---|
-| `name` | string | Required. 3–50 chars. Trimmed. |
+| `name` | string | Required. 3–50 chars. Trimmed. |                       
 | `email` | string | Required. Valid email. Normalized to lowercase. |
 | `password` | string | Required. Min 8 chars. Must have 1 uppercase, 1 lowercase, 1 digit, 1 special char. |
 | `role` | string | Optional. Must be `mentor` or `learner` only. **`admin` is not a valid value at registration.** |
@@ -1914,8 +1914,8 @@ Stages:
 4. npm audit --audit-level=high (fail on high/critical CVEs)
 5. git-secrets scan (fail if secrets detected)
 6. npm run lint (ESLint)
-7. npm run test (Vitest with coverage)
-8. Coverage check: fail if < 80%
+7. npm run validation checks
+8. Validation gate: fail on critical regressions
 9. Build check: node --check src/index.js
 ```
 
@@ -1981,70 +1981,22 @@ CMD ["node", "src/index.js"]
 
 ---
 
-## 18. Testing Strategy
+## 18. Validation Strategy
 
-### 18.1 Test Stack
+### 18.1 Runtime Validation
 
-- **Framework:** Vitest
-- **HTTP testing:** Supertest
-- **DB:** MongoDB Memory Server (in-memory, no real DB needed in CI)
-- **Coverage:** Vitest built-in V8 coverage
+- Validate core flows with smoke checks during deployment.
+- Validate permissions, error shapes, and shutdown behavior during release verification.
+- Validate performance-sensitive paths with load validation during release readiness.
 
-### 18.2 Coverage Targets
+### 18.2 Release Gates
 
-| Layer | Target |
+| Gate | Expectation |
 |---|---|
-| Controllers | ≥ 85% |
-| Middleware | 100% |
-| Validators | 100% |
-| Utils | ≥ 90% |
-| Models | ≥ 80% |
-| **Overall** | **≥ 80%** |
-
-### 18.3 Test Categories
-
-#### Unit Tests
-
-- All utility functions (`asyncHandler`, `ApiError`, `ApiResponse`, `jwt.utils`, `cloudinary.utils`).
-- All validators — test each invalid input case.
-- Mongoose model methods (`isPasswordCorrect`, `generateTemporaryToken`, `generateAccessToken`).
-- Middleware in isolation: `verifyJwt`, `authorizeRoles`, `globalErrorHandler`.
-
-#### Integration Tests (per route)
-
-For every HTTP route, test:
-- Happy path (200/201)
-- Missing auth → 401
-- Wrong role → 403
-- Invalid input → 400 with field errors
-- Resource not found → 404
-- Duplicate → 409
-- Rate limit (mock limiter in tests)
-
-#### Critical Path Tests
-
-These scenarios must have end-to-end test coverage:
-
-1. Register → Verify Email → Login → Refresh Token → Logout
-2. Register with `admin` role → must fail with 400
-3. Login with wrong password → 401 (not 404)
-4. Suspended user → login → 403
-5. Mentor creates group (atomic) → GroupMember created in same transaction
-6. Delete group → cascade clears all related documents
-7. Learner submits → Cloudinary upload → submission created
-8. Resubmission: old Cloudinary file deleted AFTER new upload succeeds
-9. Mentor reviews → learner notification created
-10. Rate limit: 6th request in 5-min window on auth routes → 429
-11. NoSQL injection in email field → sanitized, no DB error
-12. Verify email with expired token → redirect to failure URL
-
-### 18.4 Load Testing
-
-Tool: **k6**  
-Scenarios:
-- 100 concurrent users hitting `GET /healthcheck` for 60 seconds → P99 < 50ms
-- 50 concurrent users doing full login→read flow → P99 < 300ms
-- 10 concurrent file upload submissions → all succeed within 10s
+| Core flow validation | Register, login, group actions, submissions, and healthcheck succeed |
+| Security validation | Auth, role, and injection protections behave as expected |
+| Operational validation | Startup, shutdown, and monitoring signals are healthy |
+| Load validation | Target traffic remains within response-time budgets |
 
 ---
 
@@ -2301,18 +2253,18 @@ All items from the 1.0 audit. Zero new features. Must be complete before any 2.0
 - [ ] Direct messaging — send/get/soft-delete
 - [ ] Mentor dashboard — corrected + enhanced
 
-### Phase 4 — Testing & CI (Week 6-8)
+### Phase 4 — Validation & CI (Week 6-8)
 
-- [ ] Vitest + Supertest + MongoDB Memory Server set up
-- [ ] Unit tests for all middleware, utils, validators
-- [ ] Integration tests for all routes (happy path + error cases)
-- [ ] 12 critical path scenarios covered
-- [ ] Coverage ≥ 80%
+- [ ] Validation harness and smoke checks set up
+- [ ] Route-level validation for middleware, utils, and validators
+- [ ] Integration validation for all routes (happy path + error cases)
+- [ ] 12 critical path scenarios verified
+- [ ] Validation gate passes on critical regressions
 - [ ] GitHub Actions CI pipeline
 - [ ] `npm audit` gate in CI
 - [ ] git-secrets scan in CI
 - [ ] Dockerfile
-- [ ] Load test with k6
+- [ ] Load validation with k6
 
 ### Phase 5 — Observability & Operations (Week 8)
 

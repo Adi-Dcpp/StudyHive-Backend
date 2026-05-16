@@ -262,6 +262,7 @@ const inviteMembers = asyncHandler(async (req, res) => {
 
   return res.status(200).json(
     new ApiResponse(200, "Invite code fetched successfully", {
+      groupId: group._id,
       inviteCode: group.inviteCode,
     }),
   );
@@ -311,14 +312,12 @@ const viewGroupMembers = asyncHandler(async (req, res) => {
     joinedAt: m.createdAt,
   }));
 
-  return res
-    .status(200)
-    .json(
-      new ApiResponse(200, "Members data fetched successfully", {
-        members: result,
-        pagination,
-      }),
-    );
+  return res.status(200).json(
+    new ApiResponse(200, "Members data fetched successfully", {
+      members: result,
+      pagination,
+    }),
+  );
 });
 
 const removeGroupMembers = asyncHandler(async (req, res) => {
@@ -356,6 +355,82 @@ const removeGroupMembers = asyncHandler(async (req, res) => {
   );
 });
 
+//Leave Group
+const leaveGroup = asyncHandler(async (req, res) => {
+  const { groupId } = req.params;
+  const { _id: userId } = req.user;
+
+  const isMentor = await GroupMember.exists({
+    group: groupId,
+    user: userId,
+    role: "mentor",
+  });
+
+  if (isMentor) {
+    throw new ApiError(400, "Mentor cannot leave their own group");
+  }
+
+  const isDeleted = await GroupMember.deleteOne({
+    group: groupId,
+    user: userId,
+  });
+
+  if (isDeleted.deletedCount === 0) {
+    throw new ApiError(404, "User is not a member of group");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "User successfully left the group", {}));
+});
+
+const regenerateInviteCode = asyncHandler(async (req, res) => {
+  const { groupId } = req.params;
+  const userId = req.user._id;
+
+  if (!groupId) {
+    throw new ApiError(400, "Group id is required");
+  }
+
+  const group = await Group.findById(groupId);
+
+  if (!group) {
+    throw new ApiError(404, "Group not found");
+  }
+
+  const mentorMembership = await GroupMember.findOne({
+    group: groupId,
+    user: userId,
+    role: "mentor",
+  });
+
+  if (!mentorMembership) {
+    throw new ApiError(403, "Only mentors can regenerate invite code");
+  }
+
+  let newInviteCode;
+  let isUnique = false;
+
+  // Generate unique invite code (retry if collision occurs)
+  while (!isUnique) {
+    newInviteCode = crypto.randomBytes(6).toString("hex");
+    const existingGroup = await Group.findOne({ inviteCode: newInviteCode });
+    if (!existingGroup) {
+      isUnique = true;
+    }
+  }
+
+  group.inviteCode = newInviteCode;
+  await group.save();
+
+  return res.status(200).json(
+    new ApiResponse(200, "Invite code regenerated successfully", {
+      groupId: group._id,
+      inviteCode: newInviteCode,
+    }),
+  );
+});
+
 export {
   createGroup,
   joinGroup,
@@ -366,4 +441,6 @@ export {
   inviteMembers,
   viewGroupMembers,
   removeGroupMembers,
+  leaveGroup,
+  regenerateInviteCode
 };

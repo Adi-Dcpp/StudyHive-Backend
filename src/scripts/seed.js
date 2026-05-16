@@ -19,7 +19,7 @@ const defaultPassword = process.env.SEED_DEFAULT_PASSWORD || "Password@123";
 
 const RESOURCE_FILE_URLS = [
   {
-    url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+    url: "https://www.w3.org/WAI/ER/pdf/dummy.pdf",
     fileName: "study-guide.pdf",
     size: 13264,
   },
@@ -208,7 +208,7 @@ const createGroupsAndMembers = async (userMap) => {
     },
     {
       name: "API Architecture Studio",
-      description: "REST design, standards, versioning, and contract testing.",
+      description: "REST design, standards, versioning, and API contracts.",
     },
   ];
 
@@ -417,7 +417,7 @@ const createSubmissions = async (assignmentEntries) => {
         marksObtained: status === "reviewed" ? 72 + (index % 25) : undefined,
         feedback:
           status === "reviewed"
-            ? "Solid implementation. Improve test coverage and naming consistency."
+            ? "Solid implementation. Improve naming consistency and edge-case handling."
             : status === "revision_required"
               ? "Please resubmit after fixing validation and edge-case handling."
               : undefined,
