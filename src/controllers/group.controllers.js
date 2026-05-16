@@ -4,37 +4,59 @@ import { asyncHandler } from "../utils/async-handler.utils.js";
 import { getPaginatedData } from "../utils/pagination.utils.js";
 import { Group } from "../models/group.models.js";
 import { GroupMember } from "../models/groupMember.models.js";
+import { Goal } from "../models/goal.models.js";
+import { Assignment } from "../models/assignment.models.js";
+import { Submission } from "../models/submission.models.js";
+import { Resource } from "../models/resource.models.js";
+import { Announcement } from "../models/announcement.models.js";
+import { v2 as cloudinary } from "cloudinary";
+import mongoose from "mongoose";
 import crypto from "node:crypto";
 
 const createGroup = asyncHandler(async (req, res) => {
   const { name, description } = req.body;
   const userId = req.user._id;
+
   const inviteCode = crypto.randomBytes(6).toString("hex");
 
-  const group = await Group.create({
-    name,
-    description,
-    inviteCode,
-    mentor: userId,
-  });
+  const session = await mongoose.startSession();
 
-  if (!group) {
-    throw new ApiError(500, "Failed to create group");
+  try {
+    session.startTransaction();
+
+    const group = new Group({
+      name,
+      description,
+      inviteCode,
+      mentor: userId,
+    });
+
+    await group.save({ session });
+
+    const mentorMember = new GroupMember({
+      group: group._id,
+      user: userId,
+      role: "mentor",
+    });
+
+    await mentorMember.save({ session });
+
+    await session.commitTransaction();
+
+    return res.status(201).json(
+      new ApiResponse(201, "Group successfully created", {
+        groupId: group._id,
+        name: group.name,
+        inviteCode: group.inviteCode,
+      }),
+    );
+  } catch (error) {
+    await session.abortTransaction();
+
+    throw new ApiError(500, error.message || "Failed to create group");
+  } finally {
+    session.endSession();
   }
-
-  await GroupMember.create({
-    group: group._id,
-    user: userId,
-    role: "mentor",
-  });
-
-  return res.status(201).json(
-    new ApiResponse(201, "Group successfully created", {
-      groupId: group._id,
-      name: group.name,
-      inviteCode: group.inviteCode,
-    }),
-  );
 });
 
 const joinGroup = asyncHandler(async (req, res) => {
@@ -215,7 +237,15 @@ const updateGroup = asyncHandler(async (req, res) => {
 
 const deleteGroup = asyncHandler(async (req, res) => {
   const { groupId } = req.params;
-  const userId = req.user._id;
+  const { _id: userId, role } = req.user;
+
+  if (!mongoose.Types.ObjectId.isValid(groupId)) {
+    throw new ApiError(400, "Invalid group ID");
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    throw new ApiError(400, "Invalid user ID");
+  }
 
   const group = await Group.findById(groupId);
 
@@ -223,22 +253,172 @@ const deleteGroup = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Group not found");
   }
 
-  const member = await GroupMember.findOne({
+  const isMentor = await GroupMember.exists({
     group: groupId,
     user: userId,
+    role: "mentor",
   });
 
-  if (!member || member.role !== "mentor") {
-    throw new ApiError(403, "Only mentors can delete the group");
+  const isAdmin = role === "admin";
+
+  if (!isMentor && !isAdmin) {
+    throw new ApiError(
+      403,
+      "Only mentor or admin can delete this group",
+    );
   }
 
-  await GroupMember.deleteMany({ group: groupId });
+  const goalIds = await Goal.find({
+    group: groupId,
+  })
+    .select("_id")
+    .lean()
+    .then((goals) =>
+      goals.map((goal) => goal._id),
+    );
 
-  await Group.findByIdAndDelete(groupId);
+  let assignmentIds = [];
+  let submissions = [];
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, "Group deleted Successfully", { groupId }));
+  if (goalIds.length > 0) {
+    assignmentIds = await Assignment.find({
+      goalId: {
+        $in: goalIds,
+      },
+    })
+      .select("_id")
+      .lean()
+      .then((assignments) =>
+        assignments.map(
+          (assignment) => assignment._id,
+        ),
+      );
+
+    if (assignmentIds.length > 0) {
+      submissions = await Submission.find({
+        assignmentId: {
+          $in: assignmentIds,
+        },
+      })
+        .select("cloudinaryPublicId")
+        .lean();
+    }
+  }
+
+  const fileResources = await Resource.find({
+    group: groupId,
+    type: "file",
+  })
+    .select("cloudinaryPublicId")
+    .lean();
+
+  const submissionPublicIds = submissions
+    .filter((submission) => submission.cloudinaryPublicId)
+    .map((submission) => submission.cloudinaryPublicId);
+
+  const resourcePublicIds = fileResources
+    .filter((resource) => resource.cloudinaryPublicId)
+    .map((resource) => resource.cloudinaryPublicId);
+
+  const session = await mongoose.startSession();
+
+  try {
+    session.startTransaction();
+
+    if (assignmentIds.length > 0) {
+      await Submission.deleteMany(
+        {
+          assignmentId: {
+            $in: assignmentIds,
+          },
+        },
+        { session },
+      );
+    }
+
+    if (goalIds.length > 0) {
+      await Assignment.deleteMany(
+        {
+          goalId: {
+            $in: goalIds,
+          },
+        },
+        { session },
+      );
+    }
+
+    await Goal.deleteMany(
+      {
+        group: groupId,
+      },
+      { session },
+    );
+
+    await Resource.deleteMany(
+      {
+        group: groupId,
+      },
+      { session },
+    );
+
+    await Announcement.deleteMany(
+      {
+        group: groupId,
+      },
+      { session },
+    );
+
+    await GroupMember.deleteMany(
+      {
+        group: groupId,
+      },
+      { session },
+    );
+
+    await Group.deleteOne(
+      {
+        _id: groupId,
+      },
+      { session },
+    );
+
+    await session.commitTransaction();
+    try {
+      await Promise.all([
+        ...submissionPublicIds.map((id) =>
+          cloudinary.uploader.destroy(id, { resource_type: "raw" }),
+        ),
+        ...resourcePublicIds.map((id) =>
+          cloudinary.uploader.destroy(id, { resource_type: "raw" }),
+        ),
+      ]);
+    } catch (err) {
+      console.error(
+        "Failed to delete some files from Cloudinary:",
+        err,
+      );
+    }
+
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        "Group and all related data deleted successfully",
+        {
+          groupId,
+        },
+      ),
+    );
+  } catch (error) {
+    await session.abortTransaction();
+
+    throw new ApiError(
+      500,
+      error.message ||
+        "Failed to delete group",
+    );
+  } finally {
+    session.endSession();
+  }
 });
 
 const inviteMembers = asyncHandler(async (req, res) => {

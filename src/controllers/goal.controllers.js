@@ -5,6 +5,10 @@ import { Group } from "../models/group.models.js";
 import { GroupMember } from "../models/groupMember.models.js";
 import { Goal } from "../models/goal.models.js";
 import { getPaginatedData } from "../utils/pagination.utils.js";
+import { Assignment } from "../models/assignment.models.js";
+import { Submission } from "../models/submission.models.js";
+import { v2 as cloudinary } from "cloudinary";
+import mongoose from "mongoose";
 
 const createGoal = asyncHandler(async (req, res) => {
   const { groupId } = req.params;
@@ -241,33 +245,116 @@ const deleteGoal = asyncHandler(async (req, res) => {
   const { goalId } = req.params;
   const { _id: userId } = req.user;
 
+  if (!mongoose.Types.ObjectId.isValid(goalId)) {
+    throw new ApiError(400, "Invalid goal ID");
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    throw new ApiError(400, "Invalid user ID");
+  }
+
   const goal = await Goal.findById(goalId);
 
   if (!goal) {
     throw new ApiError(404, "Goal not found");
   }
 
-  const group = await Group.findById(goal.group);
-
-  if (!group) {
-    throw new ApiError(404, "Group not found");
-  }
-
-  const mentorMembership = await GroupMember.findOne({
-    group: group._id,
+  const isMentor = await GroupMember.exists({
+    group: goal.group,
     user: userId,
     role: "mentor",
   });
 
-  if (!mentorMembership) {
-    throw new ApiError(403, "User not authorized to delete this goal");
+  if (!isMentor) {
+    throw new ApiError(
+      403,
+      "User not authorized to delete this goal",
+    );
   }
 
-  await goal.deleteOne();
+  const assignments = await Assignment.find({
+    goalId: goal._id,
+  }).select("_id");
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, "Goal deleted successfully"));
+  const assignmentIds = assignments.map(
+    (assignment) => assignment._id,
+  );
+
+  let submissions = [];
+
+  if (assignmentIds.length > 0) {
+    submissions = await Submission.find({
+      assignmentId: {
+        $in: assignmentIds,
+      },
+    }).select("cloudinaryPublicId");
+  }
+
+  const submissionPublicIds = submissions
+    .filter((submission) => submission.cloudinaryPublicId)
+    .map((submission) => submission.cloudinaryPublicId);
+
+  const session = await mongoose.startSession();
+
+  try {
+    session.startTransaction();
+
+    if (assignmentIds.length > 0) {
+      await Submission.deleteMany(
+        {
+          assignmentId: {
+            $in: assignmentIds,
+          },
+        },
+        { session },
+      );
+    }
+
+    await Assignment.deleteMany(
+      {
+        goalId: goal._id,
+      },
+      { session },
+    );
+
+    await Goal.deleteOne(
+      {
+        _id: goal._id,
+      },
+      { session },
+    );
+
+    await session.commitTransaction();
+    try {
+      await Promise.all(
+        submissionPublicIds.map((id) =>
+          cloudinary.uploader.destroy(id, { resource_type: "raw" }),
+        ),
+      );
+    } catch (err) {
+      console.error(
+        "Failed to delete some submission files from Cloudinary:",
+        err,
+      );
+    }
+
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        "Goal and all related data deleted successfully",
+        null,
+      ),
+    );
+  } catch (error) {
+    await session.abortTransaction();
+
+    throw new ApiError(
+      500,
+      error.message || "Failed to delete goal",
+    );
+  } finally {
+    session.endSession();
+  }
 });
 
 export { createGoal, getGoalsByGroup, getMyGoals, updateGoal, deleteGoal };
