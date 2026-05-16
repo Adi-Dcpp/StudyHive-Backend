@@ -33,8 +33,13 @@ const getSubmissionsByAssignmentValidator = [
   param("assignmentId").isMongoId().withMessage("Invalid assignmentId"),
 ];
 
+const getMySubmissionValidator = [
+  param("assignmentId").isMongoId().withMessage("Invalid assignmentId"),
+];
+
 export {
   submitAssignmentValidator,
   reviewSubmissionValidator,
+  getSubmissionsByAssignmentValidator,
   getSubmissionsByAssignmentValidator,
 };

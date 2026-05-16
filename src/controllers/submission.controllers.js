@@ -217,4 +217,40 @@ const getSubmissionsByAssignment = asyncHandler(async (req, res) => {
   );
 });
 
-export { submitAssignment, reviewSubmission, getSubmissionsByAssignment };
+const getMySubmission = asyncHandler(async (req, res) => {
+  const { assignmentId } = req.params;
+  const userId = req.user._id;
+
+  if (!mongoose.Types.ObjectId.isValid(assignmentId)) {
+    throw new ApiError(400, "Invalid assignment ID");
+  }
+
+  if (req.user.role !== "learner") {
+    throw new ApiError(
+      403,
+      "Only learners can access submissions",
+    );
+  }
+
+  const submission = await Submission.findOne({
+    assignmentId,
+    userId,
+  });
+
+  if (!submission) {
+    throw new ApiError(
+      404,
+      "Submission not found",
+    );
+  }
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      "Submission fetched successfully",
+      submission,
+    ),
+  );
+});
+
+export { submitAssignment, reviewSubmission, getSubmissionsByAssignment, getMySubmission };
