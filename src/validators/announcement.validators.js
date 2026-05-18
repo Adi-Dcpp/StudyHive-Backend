@@ -1,7 +1,7 @@
 import { param, body } from "express-validator";
 
 const createAnnouncementValidator = [
-    param(groupId).isMongoId().withMessage("Invalid groupId"),
+    param("groupId").isMongoId().withMessage("Invalid groupId"),
 
     body("title")
         .isString()
@@ -21,11 +21,11 @@ const createAnnouncementValidator = [
 ]
 
 const getAnnouncementValidator = [
-    param(groupId).isMongoId().withMessage("Ivalid groupId")
+    param("groupId").isMongoId().withMessage("Invalid groupId")
 ]
 
 const updateAnnouncementValidator = [
-    param(announcementId).isMongoId().withMessage("Invalid announcementId"),
+    param("announcementId").isMongoId().withMessage("Invalid announcementId"),
     
     body("title")
         .isString()
@@ -49,7 +49,7 @@ const updateAnnouncementValidator = [
 ]
 
 const deleteAnnouncementValidator = [
-    param(groupId).isMongoId().withMessage("Ivalid groupId")
+    param("announcementId").isMongoId().withMessage("Invalid announcementId")
 ]
 
 export {

@@ -41,5 +41,5 @@ export {
   submitAssignmentValidator,
   reviewSubmissionValidator,
   getSubmissionsByAssignmentValidator,
-  getSubmissionsByAssignmentValidator,
+  getMySubmissionValidator,
 };

@@ -10,7 +10,7 @@ import {
   submitAssignmentValidator,
   reviewSubmissionValidator,
   getSubmissionsByAssignmentValidator,
-  getSubmissionsByAssignmentValidator
+  getMySubmissionValidator
 } from "../validators/submission.validators.js";
 
 import { upload } from "../middlewares/multer.middlewares.js";
@@ -52,7 +52,7 @@ router.get(
   "/assignments/:assignmentId/my-submission",
   verifyJwt,
   authorizeRoles("learner"),
-  getSubmissionsByAssignmentValidator,
+  getMySubmissionValidator,
   validate,
   getMySubmission,
 );

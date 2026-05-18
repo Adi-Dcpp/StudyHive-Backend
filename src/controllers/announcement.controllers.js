@@ -1,10 +1,10 @@
-import { ApiError } from "../utils/api-error.utils";
+import { ApiError } from "../utils/api-error.utils.js";
 import { ApiResponse } from "../utils/api-response.utils.js";
 import { asyncHandler } from "../utils/async-handler.utils.js";
 import { User } from "../models/user.models.js";
 import { Group } from "../models/group.models.js";
 import { GroupMember } from "../models/groupMember.models.js";
-import { Announcement } from "../models/announcement.models.js";
+import {Announcement} from "../models/announcement.models.js";
 import { getPaginatedData } from "../utils/pagination.utils.js";
 import mongoose from "mongoose";
 

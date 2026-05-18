@@ -37,5 +37,5 @@ const announcementSchema = new Schema(
     },
 );
 
-export default mongoose.model("Announcement", announcementSchema);
+export const Announcement = mongoose.model("Announcement", announcementSchema);
 
