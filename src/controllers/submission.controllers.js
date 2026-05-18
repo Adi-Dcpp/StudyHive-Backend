@@ -8,6 +8,7 @@ import { GroupMember } from "../models/groupMember.models.js";
 import { uploadToCloudinary } from "../utils/cloudinary.utils.js";
 import { v2 as cloudinary } from "cloudinary";
 import { getPaginatedData } from "../utils/pagination.utils.js";
+import { createNotification } from "../services/notification.services.js";
 
 const submitAssignment = asyncHandler(async (req, res) => {
   const { assignmentId } = req.params;
@@ -130,12 +131,6 @@ const reviewSubmission = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Assignment not found or inactive");
   }
 
-  const group = await Group.findById(assignment.groupId);
-
-  if (!group) {
-    throw new ApiError(404, "Group not found");
-  }
-
   const mentorMembership = await GroupMember.findOne({
     group: assignment.groupId,
     user: userId,
@@ -154,6 +149,29 @@ const reviewSubmission = asyncHandler(async (req, res) => {
 
   await submission.save();
 
+  try {
+    await createNotification({
+      recipient: submission.userId,
+      type: status === "reviewed" ? "submission_reviewed" : "revision_required",
+
+      title:
+        status === "reviewed" ? "Submission Reviewed" : "Revision Required",
+
+      body:
+        status === "reviewed"
+          ? `Your submission for "${assignment.title}" has been reviewed.`
+          : `Your mentor requested revisions for "${assignment.title}".`,
+
+      refId: submission._id,
+      refModel: "Submission",
+    });
+  } catch (error) {
+    console.error(
+      "Failed to create notification after reviewing submission:",
+      error,
+    );
+    // Do not fail the review process if notification creation fails.
+  }
   return res.status(200).json(
     new ApiResponse(200, "Submission reviewed successfully", {
       submissionId: submission._id,
@@ -169,7 +187,10 @@ const getSubmissionsByAssignment = asyncHandler(async (req, res) => {
 
   const query = { assignmentId };
 
-  const assignment = await Assignment.findOne({ _id: assignmentId, isActive: true }).select("groupId");
+  const assignment = await Assignment.findOne({
+    _id: assignmentId,
+    isActive: true,
+  }).select("groupId");
 
   if (!assignment) {
     throw new ApiError(404, "Assignment not found or inactive");
@@ -226,10 +247,7 @@ const getMySubmission = asyncHandler(async (req, res) => {
   }
 
   if (req.user.role !== "learner") {
-    throw new ApiError(
-      403,
-      "Only learners can access submissions",
-    );
+    throw new ApiError(403, "Only learners can access submissions");
   }
 
   const submission = await Submission.findOne({
@@ -238,19 +256,17 @@ const getMySubmission = asyncHandler(async (req, res) => {
   });
 
   if (!submission) {
-    throw new ApiError(
-      404,
-      "Submission not found",
-    );
+    throw new ApiError(404, "Submission not found");
   }
 
-  return res.status(200).json(
-    new ApiResponse(
-      200,
-      "Submission fetched successfully",
-      submission,
-    ),
-  );
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Submission fetched successfully", submission));
 });
 
-export { submitAssignment, reviewSubmission, getSubmissionsByAssignment, getMySubmission };
+export {
+  submitAssignment,
+  reviewSubmission,
+  getSubmissionsByAssignment,
+  getMySubmission,
+};

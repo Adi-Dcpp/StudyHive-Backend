@@ -6,13 +6,19 @@ import { Goal } from "../models/goal.models.js";
 import { Group } from "../models/group.models.js";
 import { GroupMember } from "../models/groupMember.models.js";
 import { getPaginatedData } from "../utils/pagination.utils.js";
+import { createManyNotifications } from "../services/notification.services.js";
 
 const createAssignment = asyncHandler(async (req, res) => {
   const { goalId } = req.params;
   const { title, description, deadline, referenceMaterials } = req.body;
   const { _id: userId } = req.user;
 
-  const goal = await Goal.findById(goalId);
+  if (!mongoose.Types.ObjectId.isValid(goalId)) {
+    throw new ApiError(400, "Invalid goal ID");
+  }
+
+  const goal = await Goal.findById(goalId)
+    .select("group assignedTo");
 
   if (!goal) {
     throw new ApiError(404, "Failed to get the goal");
@@ -50,6 +56,21 @@ const createAssignment = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Failed to create assignment");
   }
 
+  const notifications = (goal.assignedTo || [])
+    .filter((learnerId) => !learnerId.equals(userId))
+    .map((learnerId) => ({
+      recipient: learnerId,
+      type: "new_assignment",
+      title: "New Assignment Posted",
+      body: `Your mentor posted "${assignment.title}" in ${group.name}.`,
+      refId: assignment._id,
+      refModel: "Assignment",
+    }));
+
+  if (notifications.length > 0) {
+    await createManyNotifications(notifications);
+  }
+
   return res.status(201).json(
     new ApiResponse(201, "Assignment created successfully", {
       title: assignment.title,
@@ -62,7 +83,7 @@ const getAssignmentsByGoal = asyncHandler(async (req, res) => {
   const { goalId } = req.params;
   const { _id: userId } = req.user;
 
-  const goal = await Goal.findById(goalId);
+  const goal = await Goal.findById(goalId)
   if (!goal) {
     throw new ApiError(404, "Goal not found");
   }
@@ -90,7 +111,7 @@ const getAssignmentsByGoal = asyncHandler(async (req, res) => {
       new ApiResponse(200, "No assignments found for the goal", {
         assignments: [],
         pagination,
-      })
+      }),
     );
   }
 
@@ -105,7 +126,7 @@ const getAssignmentsByGoal = asyncHandler(async (req, res) => {
     new ApiResponse(200, "Assignment data fetched successfully", {
       assignments,
       pagination,
-    })
+    }),
   );
 });
 

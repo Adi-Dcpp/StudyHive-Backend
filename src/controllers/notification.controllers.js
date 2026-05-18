@@ -1,6 +1,6 @@
-import { ApiResponse } from "../utils/apiResponse.js";
-import { ApiError } from "../utils/apiError.js";
-import { asyncHandler } from "../utils/asyncHandler.js";
+import { ApiResponse } from "../utils/api-response.utils.js";
+import { ApiError } from "../utils/api-error.utils.js";
+import { asyncHandler } from "../utils/async-handler.utils.js";
 import { Notification } from "../models/notification.models.js";
 import mongoose from "mongoose";
 import { getPaginatedData } from "../utils/pagination.utils.js";

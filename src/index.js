@@ -5,6 +5,7 @@ const { default: connectDB } = await import("./db/index.db.js");
 import mongoose from "mongoose";
 import pino from "pino";
 import { LoggerPolicy } from "./utils/constants.utils.js";
+import { startDeadlineReminderCron } from "./cron/deadlineReminder.cron.js";
 
 const PORT = process.env.PORT || 3000;
 const FORCE_SHUTDOWN_TIMEOUT_MS = 10_000;
@@ -85,6 +86,8 @@ const startServer = async () => {
   try {
     validateEnvOrExit();
     await connectDB();
+
+    startDeadlineReminderCron();
 
     server = app.listen(PORT, () => {
       logger.info(`Server running on port ${PORT}`);
