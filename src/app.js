@@ -124,6 +124,7 @@ import dashboardRouter from "./routes/dashboard.routes.js";
 import announcementRouter from "./routes/announcement.routes.js";
 import notificationRouter from "./routes/notification.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
+import messageRoutes from "./routes/message.routes.js";
 
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/groups", groupRouter);
@@ -136,6 +137,7 @@ app.use("/api/v1/dashboard", dashboardRouter);
 app.use("/api/v1/announcements", announcementRouter);
 app.use("/api/v1/notifications", notificationRouter);
 app.use("/api/v1/admin", adminRoutes);
+app.use("/api/v1/messages", messageRoutes);
 app.get("/", (req, res) => {
   res.send("StudyHive backend running 🚀");
 });

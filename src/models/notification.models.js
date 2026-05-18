@@ -16,6 +16,7 @@ const notificationSchema = new Schema(
         "new_announcement",
         "goal_assigned",
         "deadline_reminder",
+        "group_message",
       ],
       required: true,
       trim: true,
@@ -35,7 +36,7 @@ const notificationSchema = new Schema(
     },
     refModel: {
       type: String,
-      enum: ["Assignment", "Submission", "Announcement", "Goal"],
+      enum: ["Assignment", "Submission", "Announcement", "Goal", "Message"],
       trim: true,
     },
     isRead: {

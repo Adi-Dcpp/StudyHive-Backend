@@ -20,7 +20,6 @@ const router = Router();
 
 router.use(verifyJwt, verifyAdmin);
 
-// User Management
 router.get("/users", listUsers);
 
 router.get("/users/:userId", getUserById);
@@ -45,7 +44,6 @@ router.delete(
   deleteUser,
 );
 
-// Group Management
 router.get("/groups", listGroups);
 
 router.delete(
@@ -53,7 +51,6 @@ router.delete(
   forceDeleteGroup,
 );
 
-// Platform Stats
 router.get("/stats", getPlatformStats);
 
 export default router;
