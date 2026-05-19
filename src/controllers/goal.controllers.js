@@ -64,6 +64,7 @@ const createGoal = asyncHandler(async (req, res) => {
 
   return res.status(201).json(
     new ApiResponse(201, "New goal created successfully", {
+      goalId: goal._id,
       title: goal.title,
       createdBy: goal.createdBy,
     }),

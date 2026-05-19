@@ -226,6 +226,11 @@ const deleteAnnouncement = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Announcement not found");
   }
 
+  
+  if(announcement.createdBy.toString() !== userId.toString()){
+    throw new ApiError(403, "Only the creator can delete this announcement");
+  }
+
   const membership = await GroupMember.findOne({
     group: announcement.group,
     user: userId,

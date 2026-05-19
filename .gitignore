@@ -1,6 +1,28 @@
-node_modules
+# Node
+node_modules/
+
+# Environment
 .env
-public/temp
+.env.*
+.env.local
+
+# Build / runtime
+public/temp/
+logs/
+coverage/
+*.log
+
+# Project docs & tools (ignored per request)
+docs/
+postman/
+src/scripts/
+
+# Misc
 REMAINING_WORK.md
 WORK_SUMMARY.md
 PORTFOLIO_REVIEW.md
+.DS_Store
+
+# Editor/IDE
+.vscode/
+.idea/

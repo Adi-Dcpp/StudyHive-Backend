@@ -131,6 +131,20 @@ const reviewSubmission = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Assignment not found or inactive");
   }
 
+  if (marksObtained !== undefined) {
+    const numericMarksObtained = Number(marksObtained);
+
+    if (
+      Number.isNaN(numericMarksObtained) ||
+      numericMarksObtained < 0 ||
+      (assignment.maxMarks !== undefined && numericMarksObtained > assignment.maxMarks)
+    ) {
+      throw new ApiError(400, "marksObtained must be between 0 and assignment maxMarks");
+    }
+
+    submission.marksObtained = numericMarksObtained;
+  }
+
   const mentorMembership = await GroupMember.findOne({
     group: assignment.groupId,
     user: userId,
@@ -143,8 +157,6 @@ const reviewSubmission = asyncHandler(async (req, res) => {
 
   submission.status = status;
   submission.feedback = feedback ?? submission.feedback;
-  submission.marksObtained =
-    marksObtained !== undefined ? marksObtained : submission.marksObtained;
   submission.reviewedAt = new Date();
 
   await submission.save();

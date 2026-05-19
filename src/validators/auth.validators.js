@@ -25,6 +25,7 @@ const userRegisterValidator = () => {
       ),
     body("email")
       .exists()
+      .trim()
       .withMessage("Email is required")
       .isEmail()
       .withMessage("Invalid email format"),
@@ -36,6 +37,7 @@ const userLoginValidator = () => {
   return [
     body("email")
       .exists()
+      .trim()
       .withMessage("Email is required")
       .isEmail()
       .withMessage("Invalid email format"),
@@ -60,7 +62,7 @@ const emailValidator = () => {
 };
 
 const forgotPasswordValidator = () => [
-  body("email").exists().isEmail().withMessage("Valid email is required"),
+  body("email").exists().trim().isEmail().withMessage("Valid email is required"),
 ];
 
 const resetPasswordValidator = () => [

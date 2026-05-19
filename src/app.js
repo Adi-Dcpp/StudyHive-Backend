@@ -4,6 +4,7 @@ dotenv.config();
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import mongoose from "mongoose";
 import helmet from "helmet";
 import hpp from "hpp";
 import pino from "pino";
@@ -28,6 +29,11 @@ app.use(
     origin: (origin, callback) => {
       // allow Postman / curl (no origin)
       if (!origin) return callback(null, true);
+
+      // In development, allow localhost
+      if (process.env.NODE_ENV === "development" && (origin?.includes("localhost") || origin?.includes("127.0.0.1"))) {
+        return callback(null, true);
+      }
 
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
@@ -110,6 +116,72 @@ app.use("/temp", (_req, _res, next) => {
 app.use(express.static("public"));
 app.use(cookieParser());
 
+// Validate common ObjectId route params (return 400 if invalid)
+const idParamNames = [
+  "id",
+  "groupId",
+  "userId",
+  "assignmentId",
+  "submissionId",
+  "resourceId",
+  "announcementId",
+  "messageId",
+  "notificationId",
+  "goalId",
+];
+
+for (const paramName of idParamNames) {
+  app.param(paramName, (req, _res, next, value) => {
+    if (!value) return next();
+
+    if (!mongoose.Types.ObjectId.isValid(String(value))) {
+      return next(new ApiError(400, `Invalid ${paramName} parameter`));
+    }
+
+    return next();
+  });
+}
+
+const unsafeMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+app.use((req, _res, next) => {
+  if (!unsafeMethods.has(req.method)) {
+    return next();
+  }
+
+  const hasCookieAuth = Boolean(
+    req.cookies?.accessToken || req.cookies?.refreshToken,
+  );
+
+  if (!hasCookieAuth) {
+    return next();
+  }
+
+  // Skip CSRF check in development for tools like Postman/curl
+  if (process.env.NODE_ENV === "development") {
+    return next();
+  }
+
+  const originHeader = req.get("origin");
+  const refererHeader = req.get("referer");
+
+  let requestOrigin = originHeader;
+
+  if (!requestOrigin && refererHeader) {
+    try {
+      requestOrigin = new URL(refererHeader).origin;
+    } catch (_error) {
+      requestOrigin = null;
+    }
+  }
+
+  if (!requestOrigin || !allowedOrigins.includes(requestOrigin)) {
+    return next(new ApiError(403, "CSRF origin not allowed"));
+  }
+
+  return next();
+});
+
 app.use(globalRate);
 
 //import Routes
@@ -141,7 +213,7 @@ app.use("/api/v1/admin", adminRouter);
 app.use("/api/v1/messages", messageRouter);
 app.use("/api/v1/leaderboard", leaderboardRouter);
 app.get("/", (req, res) => {
-  res.send("StudyHive backend running 🚀");
+  res.send("StudyHive backend running");
 });
 
 app.use((req, _res, next) => {

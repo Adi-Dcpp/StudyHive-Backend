@@ -1,10 +1,8 @@
 import mongoose from "mongoose";
-
 import { ApiError } from "../utils/api-error.utils.js";
 import { ApiResponse } from "../utils/api-response.utils.js";
 import { asyncHandler } from "../utils/async-handler.utils.js";
 import { getPaginatedData } from "../utils/pagination.utils.js";
-
 import { User } from "../models/user.models.js";
 import { Group } from "../models/group.models.js";
 import { GroupMember } from "../models/groupMember.models.js";
@@ -15,6 +13,11 @@ import { Announcement } from "../models/announcement.models.js";
 import { Notification } from "../models/notification.models.js";
 
 const VALID_ROLES = ["admin", "mentor", "learner"];
+const SAFE_USER_SELECT =
+  "-password -refreshToken -forgotPasswordToken -forgotPasswordExpiry -emailVerificationToken -emailVerificationTokenExpiry";
+const MAX_SEARCH_LENGTH = 64;
+
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const listUsers = asyncHandler(async (req, res) => {
   const { role, isEmailVerified, search } = req.query;
@@ -34,16 +37,24 @@ const listUsers = asyncHandler(async (req, res) => {
   }
 
   if (search) {
+    const trimmedSearch = search.trim();
+
+    if (trimmedSearch.length > MAX_SEARCH_LENGTH) {
+      throw new ApiError(400, "Search query is too long");
+    }
+
+    const safeSearch = escapeRegex(trimmedSearch);
+
     filter.$or = [
       {
-        fullname: {
-          $regex: search,
+        name: {
+          $regex: safeSearch,
           $options: "i",
         },
       },
       {
         email: {
-          $regex: search,
+          $regex: safeSearch,
           $options: "i",
         },
       },
@@ -58,6 +69,7 @@ const listUsers = asyncHandler(async (req, res) => {
   });
 
   const users = await User.find(filter)
+    .select(SAFE_USER_SELECT)
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit)
@@ -78,9 +90,7 @@ const getUserById = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Invalid user ID");
   }
 
-  const user = await User.findById(userId)
-    .select("-password -refreshToken")
-    .lean();
+  const user = await User.findById(userId).select(SAFE_USER_SELECT).lean();
 
   if (!user) {
     throw new ApiError(404, "User not found");
@@ -119,7 +129,7 @@ const updateUserRole = asyncHandler(async (req, res) => {
       new: true,
     },
   )
-    .select("-password -refreshToken")
+    .select(SAFE_USER_SELECT)
     .lean();
 
   if (!updatedUser) {
@@ -148,7 +158,7 @@ const suspendUser = asyncHandler(async (req, res) => {
       new: true,
     },
   )
-    .select("-password -refreshToken")
+      .select(SAFE_USER_SELECT)
     .lean();
 
   if (!updatedUser) {
@@ -176,7 +186,7 @@ const unsuspendUser = asyncHandler(async (req, res) => {
       new: true,
     },
   )
-    .select("-password -refreshToken")
+    .select(SAFE_USER_SELECT)
     .lean();
 
   if (!updatedUser) {
@@ -229,8 +239,16 @@ const listGroups = asyncHandler(async (req, res) => {
   const filter = {};
 
   if (search) {
+    const trimmedSearch = search.trim();
+
+    if (trimmedSearch.length > MAX_SEARCH_LENGTH) {
+      throw new ApiError(400, "Search query is too long");
+    }
+
+    const safeSearch = escapeRegex(trimmedSearch);
+
     filter.name = {
-      $regex: search,
+      $regex: safeSearch,
       $options: "i",
     };
   }

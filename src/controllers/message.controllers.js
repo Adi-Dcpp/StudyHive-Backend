@@ -72,7 +72,7 @@ const sendMessage = asyncHandler(async (req, res) => {
 
   return res
     .status(201)
-    .json(new ApiResponse(201, message, "Message sent successfully"));
+    .json(new ApiResponse(201, "Message sent successfully", message));
 });
 
 const getGroupMessages = asyncHandler(async (req, res) => {
@@ -94,6 +94,7 @@ const getGroupMessages = asyncHandler(async (req, res) => {
 
   const filter = {
     group: groupId,
+    deletedAt: null,
   };
 
   const total = await Message.countDocuments(filter);

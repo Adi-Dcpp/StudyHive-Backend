@@ -1,6 +1,7 @@
 import { ApiError } from "../utils/api-error.utils.js";
 import { ApiResponse } from "../utils/api-response.utils.js";
 import { asyncHandler } from "../utils/async-handler.utils.js";
+import mongoose from "mongoose";
 import { Assignment } from "../models/assignment.models.js";
 import { Goal } from "../models/goal.models.js";
 import { Group } from "../models/group.models.js";

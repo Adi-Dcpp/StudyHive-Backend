@@ -21,7 +21,9 @@ const reviewSubmissionValidator = [
   body("marksObtained")
     .optional()
     .isNumeric()
-    .withMessage("marksObtained must be a number"),
+    .withMessage("marksObtained must be a number")
+    .custom((value) => Number(value) >= 0)
+    .withMessage("marksObtained cannot be negative"),
 
   body("feedback")
     .optional()

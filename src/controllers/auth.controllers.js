@@ -11,6 +11,25 @@ import jwt from "jsonwebtoken";
 import crypto from "node:crypto";
 import { TokenDefaults } from "../utils/constants.utils.js";
 
+const trustedFrontendOrigins = (process.env.CORS_ORIGIN || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const getTrustedRedirectBase = (rawUrl) => {
+  if (!rawUrl) {
+    throw new ApiError(500, "Frontend redirect URL is not configured");
+  }
+
+  const parsedUrl = new URL(rawUrl);
+
+  if (!trustedFrontendOrigins.includes(parsedUrl.origin)) {
+    throw new ApiError(500, "Frontend redirect URL is not trusted");
+  }
+
+  return `${parsedUrl.origin}${parsedUrl.pathname.replace(/\/$/, "")}`;
+};
+
 const isProd = process.env.NODE_ENV === "production";
 
 const refreshTokenCookieOptions = {
@@ -18,6 +37,13 @@ const refreshTokenCookieOptions = {
   secure: isProd,
   sameSite: isProd ? "none" : "lax",
   maxAge: TokenDefaults.REFRESH_COOKIE_MAX_AGE_MS,
+};
+
+const accessTokenCookieOptions = {
+  httpOnly: true,
+  secure: isProd,
+  sameSite: isProd ? "none" : "lax",
+  maxAge: TokenDefaults.ACCESS_COOKIE_MAX_AGE_MS,
 };
 
 const generateRefreshAndAccessToken = async (userId) => {
@@ -116,11 +142,10 @@ const registerUser = asyncHandler(async (req, res) => {
 
 const verifyEmail = asyncHandler(async (req, res) => {
   const { token } = req.params;
+  const trustedFrontendBaseUrl = getTrustedRedirectBase(process.env.FRONTEND_URL);
 
   if (!token) {
-    return res.redirect(
-      `${process.env.FRONTEND_URL}/email-verified?status=failed`,
-    );
+    return res.redirect(`${trustedFrontendBaseUrl}/email-verified?status=failed`);
   }
 
   const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
@@ -131,9 +156,7 @@ const verifyEmail = asyncHandler(async (req, res) => {
   });
 
   if (!user) {
-    return res.redirect(
-      `${process.env.FRONTEND_URL}/email-verified?status=failed`,
-    );
+    return res.redirect(`${trustedFrontendBaseUrl}/email-verified?status=failed`);
   }
 
   user.emailVerificationToken = undefined;
@@ -144,14 +167,7 @@ const verifyEmail = asyncHandler(async (req, res) => {
 
   await user.save({ validateBeforeSave: false });
 
-  return res.redirect(
-    `${process.env.FRONTEND_URL}/email-verified?status=success`,
-  );
-  // return res.status(200).json(
-  //   new ApiResponse(200, "Email verified successfully", {
-  //     isEmailVerified: true,
-  //   }),
-  // );
+  return res.redirect(`${trustedFrontendBaseUrl}/email-verified?status=success`);
 });
 
 const login = asyncHandler(async (req, res) => {
@@ -188,10 +204,10 @@ const login = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .cookie("refreshToken", refreshToken, refreshTokenCookieOptions)
+    .cookie("accessToken", accessToken, accessTokenCookieOptions)
     .json(
       new ApiResponse(200, "User successfully logged In", {
         user: loggedInUser,
-        accessToken,
       })
     );
 });
@@ -237,6 +253,7 @@ const logOut = asyncHandler(async (req, res) => {
 
   return res
     .clearCookie("refreshToken", refreshTokenCookieOptions)
+    .clearCookie("accessToken", accessTokenCookieOptions)
     .status(200)
     .json(new ApiResponse(200, "User logged out successfully", {}));
 });
@@ -281,6 +298,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .cookie("refreshToken", newRefreshToken, refreshTokenCookieOptions)
+    .cookie("accessToken", accessToken, accessTokenCookieOptions)
     .json(
       new ApiResponse(200, "Access token successfully refreshed", {
         accessToken,
@@ -349,6 +367,9 @@ const resendEmailVerification = asyncHandler(async (req, res) => {
 
 const forgotPasswordRequest = asyncHandler(async (req, res) => {
   const { email } = req.body;
+  const trustedForgotPasswordBaseUrl = getTrustedRedirectBase(
+    process.env.FORGOT_PASSWORD_REDIRECT_URL,
+  );
 
   const normalizedEmail = email.toLowerCase();
 
@@ -379,7 +400,7 @@ const forgotPasswordRequest = asyncHandler(async (req, res) => {
     subject: "Reset Password",
     mailgenContent: forgotPasswordMailgenContent(
       user.name,
-      `${process.env.FORGOT_PASSWORD_REDIRECT_URL}/${unHashedToken}`,
+      `${trustedForgotPasswordBaseUrl}/${unHashedToken}`,
     ),
   });
 
@@ -418,6 +439,7 @@ const resetForgotPassword = asyncHandler(async (req, res) => {
 
   return res
     .clearCookie("refreshToken", refreshTokenCookieOptions)
+    .clearCookie("accessToken", accessTokenCookieOptions)
     .status(200)
     .json(new ApiResponse(200, "Password reset Successfully", {}));
 });

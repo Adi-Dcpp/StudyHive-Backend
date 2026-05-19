@@ -9,6 +9,7 @@ export const AvailableUserRoles = Object.values(UserRolesEnum);
 export const TokenDefaults = {
   ACCESS_TOKEN_EXPIRY: "15m",
   REFRESH_TOKEN_EXPIRY: "7d",
+  ACCESS_COOKIE_MAX_AGE_MS: 15 * 60 * 1000,
   EMAIL_AND_FORGOT_TOKEN_TTL_MS: 10 * 60 * 1000,
   REFRESH_COOKIE_MAX_AGE_MS: 7 * 24 * 60 * 60 * 1000,
 };
