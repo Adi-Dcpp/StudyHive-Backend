@@ -31,7 +31,7 @@ router.post(
 );
 
 router.put(
-  "/submissions/:submissionId/review",
+  "/:submissionId/review",
   verifyJwt,
   authorizeRoles("mentor"),
   reviewSubmissionValidator,
@@ -40,7 +40,7 @@ router.put(
 );
 
 router.get(
-  "/assignments/:assignmentId/submissions",
+  "/assignments/:assignmentId",
   verifyJwt,
   authorizeRoles("mentor"),
   getSubmissionsByAssignmentValidator,

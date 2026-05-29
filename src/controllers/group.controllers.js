@@ -11,7 +11,7 @@ import { Resource } from "../models/resource.models.js";
 import { Announcement } from "../models/announcement.models.js";
 import { v2 as cloudinary } from "cloudinary";
 import mongoose from "mongoose";
-import crypto from "node:crypto";
+import crypto, { Certificate } from "node:crypto";
 
 const createGroup = asyncHandler(async (req, res) => {
   const { name, description } = req.body;
@@ -144,6 +144,7 @@ const viewAllJoinedGroup = asyncHandler(async (req, res) => {
       .select("group user")
       .lean(),
   ]);
+  
   const memberCountMap = new Map(
     memberCounts.map((entry) => [entry._id.toString(), entry.count]),
   );
@@ -159,6 +160,8 @@ const viewAllJoinedGroup = asyncHandler(async (req, res) => {
     mentor: mentorByGroupId.get(m.group._id.toString()) || null,
     membersCount: memberCountMap.get(m.group._id.toString()) || 0,
     role: m.role,
+    createdAt: m.group.createdAt,
+    inviteCode: m.role === "mentor" ? m.group.inviteCode : undefined, // Only include invite code for mentors
   }));
 
   return res.status(200).json(
@@ -188,12 +191,26 @@ const getGroupDetails = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Group does not exist");
   }
 
+  const membersCount = await GroupMember.countDocuments({ group: groupId });
+
+  const goalsCount = await Goal.countDocuments({ group: groupId });
+  const assignmentsCount = await Assignment.countDocuments({ groupId });
+  const resourcesCount = await Resource.countDocuments({ group: groupId });
+
   return res.status(200).json(
     new ApiResponse(200, "Group details fetched successfully", {
       groupId: group._id,
       name: group.name,
       description: group.description,
       createdAt: group.createdAt,
+      role: isMember.role,
+      membersCount: membersCount,
+      inviteCode: isMember.role === "mentor" ? group.inviteCode : undefined, // Only include invite code for mentors
+      stats: {
+        goals: goalsCount,
+        assignments: assignmentsCount,
+        resources: resourcesCount,
+      },
     }),
   );
 });

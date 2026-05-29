@@ -17,6 +17,15 @@ const uploadResource = asyncHandler(async (req, res) => {
     throw new ApiError(400, "All required fields must be present");
   }
 
+  const existingResource = await Resource.findOne({
+    group: groupId,
+    title,
+  })
+
+  if (existingResource) {
+    throw new ApiError(400, "A resource with the same title already exists in this group");
+  }
+
   const group = await Group.findById(groupId);
   if (!group) {
     throw new ApiError(404, "Group not found");
@@ -34,14 +43,18 @@ const uploadResource = asyncHandler(async (req, res) => {
 
   let fileUrl;
   let cloudinaryPublicId;
+  let fileName;
+  let fileSize;
 
   if (type === "file") {
     if (!req.file) {
       throw new ApiError(400, "File is required for file type resource");
     }
-    const uploadResult = await uploadToCloudinary(req.file.path,req.file.mimetype);
+    const uploadResult = await uploadToCloudinary(req.file.path, req.file.mimetype);
     fileUrl = uploadResult.secureUrl;
     cloudinaryPublicId = uploadResult.publicId;
+    fileName = req.file.originalname;
+    fileSize = req.file.size;
   }
 
   if (type === "link" && !linkUrl) {
@@ -60,6 +73,8 @@ const uploadResource = asyncHandler(async (req, res) => {
     uploadedBy: userId,
     linkUrl,
     fileUrl,
+    fileName,
+    fileSize,
     cloudinaryPublicId,
   });
 
@@ -70,6 +85,9 @@ const uploadResource = asyncHandler(async (req, res) => {
       type: resource.type,
       uploadedBy: resource.uploadedBy,
       createdAt: resource.createdAt,
+      fileUrl: resource.fileUrl,
+      fileName: resource.fileName,
+      fileSize: resource.fileSize,
     }),
   );
 });

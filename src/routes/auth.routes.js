@@ -8,6 +8,7 @@ import {
   refreshAccessToken,
   resendEmailVerification,
   forgotPasswordRequest,
+  updatePassword,
   resetForgotPassword,
   changeCurrentPassword,
 } from "../controllers/auth.controllers.js";
@@ -111,6 +112,16 @@ router.post(
   changePasswordValidator(),
   validate,
   changeCurrentPassword
+);
+
+// Update password (logged-in user)
+router.post(
+  "/update-password",
+  verifyJwt,
+  userRate,
+  changePasswordValidator(),
+  validate,
+  updatePassword
 );
 
 // Logout

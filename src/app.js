@@ -52,6 +52,7 @@ const logger = pino({
     process.env.NODE_ENV === "production"
       ? LoggerPolicy.PROD_LEVEL
       : LoggerPolicy.DEV_LEVEL,
+
   transport:
     process.env.NODE_ENV !== "production"
       ? {
@@ -60,9 +61,26 @@ const logger = pino({
             colorize: true,
             translateTime: "HH:MM:ss",
             ignore: "pid,hostname",
+            singleLine: true,
           },
         }
       : undefined,
+
+  redact: {
+    paths: [
+      "req.headers.authorization",
+      "req.headers.cookie",
+      "req.cookies",
+      "req.body.password",
+      "req.body.oldPassword",
+      "req.body.newPassword",
+      "req.body.accessToken",
+      "req.body.refreshToken",
+      "accessToken",
+      "refreshToken",
+    ],
+    censor: "[REDACTED]",
+  },
 });
 
 //basic app config
@@ -70,7 +88,9 @@ app.use(helmet());
 app.use(
   pinoHttp({
     logger,
+
     genReqId: () => randomUUID(),
+
     customLogLevel: (_req, res, err) => {
       if (err || res.statusCode >= 500) {
         return "error";
@@ -82,7 +102,38 @@ app.use(
 
       return "info";
     },
-    customSuccessMessage: (req, res) => `${res.statusCode} ${req.method} ${req.url}`,
+
+    serializers: {
+      req(req) {
+        return {
+          id: req.id,
+          method: req.method,
+          url: req.url,
+          userId: req.user?._id || null,
+        };
+      },
+
+      res(res) {
+        return {
+          statusCode: res.statusCode,
+        };
+      },
+
+      err(err) {
+        return {
+          type: err.name,
+          message: err.message,
+
+          ...(process.env.NODE_ENV === "development"
+            ? { stack: err.stack }
+            : {}),
+        };
+      },
+    },
+
+    customSuccessMessage: (req, res) =>
+      `${res.statusCode} ${req.method} ${req.url}`,
+
     customErrorMessage: (req, res, err) =>
       `${res.statusCode} ${req.method} ${req.url} - ${err?.message || "Request failed"}`,
   }),

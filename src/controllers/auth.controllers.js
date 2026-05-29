@@ -473,6 +473,28 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, "Password Changed Successfully", {}));
 });
 
+const updatePassword = asyncHandler(async (req, res) => {
+  const { newPassword } = req.body;
+  const user = await User.findById(req.user._id).select("+password");
+
+  if (!newPassword) {
+    throw new ApiError(400, "New password is required");
+  }
+
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  user.password = newPassword;
+  user.refreshToken = undefined;
+
+  await user.save({ validateBeforeSave: false });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Password updated successfully", {}));
+});
+
 export {
   registerUser,
   verifyEmail,
@@ -483,5 +505,6 @@ export {
   resendEmailVerification,
   forgotPasswordRequest,
   resetForgotPassword,
+  updatePassword,
   changeCurrentPassword,
 };

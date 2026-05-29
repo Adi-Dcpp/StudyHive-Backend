@@ -20,7 +20,7 @@ import validate from "../middlewares/validators.middlewares.js";
 const router = Router();
 
 router.post(
-  "/goals/:goalId/assignments",
+  "/goals/:goalId",
   verifyJwt,
   authorizeRoles("mentor"),
   createAssignmentValidator,
@@ -29,7 +29,7 @@ router.post(
 );
 
 router.get(
-  "/goals/:goalId/assignments",
+  "/goals/:goalId",
   verifyJwt,
   getAssignmentsByGoalValidator,
   validate,
@@ -37,7 +37,7 @@ router.get(
 );
 
 router.put(
-  "/assignments/:assignmentId",
+  "/:assignmentId",
   verifyJwt,
   authorizeRoles("mentor"),
   updateAssignmentValidator,
@@ -46,7 +46,7 @@ router.put(
 );
 
 router.delete(
-  "/assignments/:assignmentId",
+  "/:assignmentId",
   verifyJwt,
   authorizeRoles("mentor"),
   deleteAssignmentValidator,
