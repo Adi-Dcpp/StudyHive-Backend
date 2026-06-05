@@ -23,15 +23,17 @@ export const RequestLimits = {
 export const RateLimitPolicies = {
   GLOBAL: {
     windowMs: 15 * 60 * 1000,
-    limit: 100,
+    limit: process.env.NODE_ENV === "development" ? 10000 : 100,
   },
+
   USER: {
     windowMs: 5 * 60 * 1000,
-    limit: 20,
+    limit: process.env.NODE_ENV === "development" ? 1000 : 20,
   },
+
   IP_AUTH: {
     windowMs: 5 * 60 * 1000,
-    limit: 5,
+    limit: process.env.NODE_ENV === "development" ? 100 : 5,
   },
 };
 
