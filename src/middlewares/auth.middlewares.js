@@ -4,9 +4,16 @@ import { User } from "../models/user.models.js";
 import jwt from "jsonwebtoken";
 
 const verifyJwt = asyncHandler(async (req, res, next) => {
-  const token =
-    req.cookies?.accessToken ||
-    req.header("Authorization")?.replace("Bearer ", "");
+  const authHeader = req.header("Authorization");
+
+  let token = authHeader?.startsWith("Bearer ")
+    ? authHeader.replace("Bearer ", "")
+    : null;
+
+  // Fallback to cookie if no Authorization header
+  if (!token) {
+    token = req.cookies?.accessToken;
+  }
 
   if (!token) {
     throw new ApiError(401, "Unauthorized request");
@@ -26,9 +33,16 @@ const verifyJwt = asyncHandler(async (req, res, next) => {
       throw new ApiError(401, "Invalid access token");
     }
 
+    if (user.isSuspended) {
+      throw new ApiError(403, "Account is suspended. Contact support.");
+    }
+
     req.user = user;
     next();
   } catch (error) {
+    if (error instanceof ApiError) {
+      throw error;
+    }
     throw new ApiError(401, "Invalid access token");
   }
 });

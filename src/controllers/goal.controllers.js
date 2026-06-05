@@ -4,6 +4,11 @@ import { ApiResponse } from "../utils/api-response.utils.js";
 import { Group } from "../models/group.models.js";
 import { GroupMember } from "../models/groupMember.models.js";
 import { Goal } from "../models/goal.models.js";
+import { getPaginatedData } from "../utils/pagination.utils.js";
+import { Assignment } from "../models/assignment.models.js";
+import { Submission } from "../models/submission.models.js";
+import { v2 as cloudinary } from "cloudinary";
+import mongoose from "mongoose";
 
 const createGoal = asyncHandler(async (req, res) => {
   const { groupId } = req.params;
@@ -16,7 +21,13 @@ const createGoal = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Group not found");
   }
 
-  if (!group.mentor.equals(userId)) {
+  const mentorMembership = await GroupMember.findOne({
+    group: groupId,
+    user: userId,
+    role: "mentor",
+  });
+
+  if (!mentorMembership) {
     throw new ApiError(403, "User is not authorised to create new goal");
   }
 
@@ -53,6 +64,7 @@ const createGoal = asyncHandler(async (req, res) => {
 
   return res.status(201).json(
     new ApiResponse(201, "New goal created successfully", {
+      goalId: goal._id,
       title: goal.title,
       createdBy: goal.createdBy,
     }),
@@ -63,45 +75,102 @@ const getGoalsByGroup = asyncHandler(async (req, res) => {
   const { groupId } = req.params;
   const { _id: userId } = req.user;
 
-  const group = await Group.findById(groupId);
-
-  if (!group) {
+  const groupExists = await Group.exists({ _id: groupId });
+  if (!groupExists) {
     throw new ApiError(404, "Group not found");
   }
 
-  const isMentor = group.mentor.equals(userId);
-
-  const isAssignedLearner = await Goal.exists({
+  const isMentor = await GroupMember.exists({
     group: groupId,
-    assignedTo: userId,
+    user: userId,
+    role: "mentor",
   });
 
-  if (!isMentor && !isAssignedLearner) {
-    throw new ApiError(
-      403,
-      "User is not authorised to view goals of this group",
+  const query = isMentor
+    ? { group: groupId }
+    : { group: groupId, assignedTo: userId };
+
+  if (!isMentor) {
+    const isMember = await GroupMember.exists({
+      group: groupId,
+      user: userId,
+    });
+
+    if (!isMember) {
+      throw new ApiError(
+        403,
+        "User is not authorised to view goals of this group",
+      );
+    }
+  }
+
+  const total = await Goal.countDocuments(query);
+
+  const { skip, limit, pagination } = getPaginatedData({
+    query: req.query,
+    total,
+  });
+
+  if (!total) {
+    return res.status(200).json(
+      new ApiResponse(200, "No Goals found", {
+        goals: [],
+        pagination,
+      }),
     );
   }
 
-  const goals = await Goal.find({ group: groupId })
+  const goals = await Goal.find(query)
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit)
     .populate("assignedTo", "name email")
-    .populate("createdBy", "name email");
+    .populate("createdBy", "name email")
+    .lean();
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, "Goals fetched successfully", goals));
+  return res.status(200).json(
+    new ApiResponse(200, "Goals fetched successfully", {
+      goals,
+      pagination,
+    }),
+  );
 });
 
 const getMyGoals = asyncHandler(async (req, res) => {
   const { _id: userId } = req.user;
 
-  const goals = await Goal.find({ assignedTo: userId })
-    .populate("group", "name email")
-    .populate("createdBy", "name email");
+  const query = { assignedTo: userId };
+  
+  const total = await Goal.countDocuments(query);
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, "My goals fetched successfully", goals));
+  const { skip, limit, pagination } = getPaginatedData({
+    query: req.query,
+    total,
+  });
+
+  if (!total) {
+    return res.status(200).json(
+      new ApiResponse(200, "No Goals assigned to you yet", {
+        goals: [],
+        pagination,
+      })
+    );
+  }
+
+  const goals = await Goal.find(query)
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit)
+    .populate("group", "name")
+    .populate("createdBy", "name email")
+    .lean();
+
+  return res.status(200).json(
+    new ApiResponse(200, "My goals fetched successfully", {
+      goals,
+      pagination,
+    })
+  );
 });
 
 const updateGoal = asyncHandler(async (req, res) => {
@@ -117,7 +186,17 @@ const updateGoal = asyncHandler(async (req, res) => {
 
   const group = await Group.findById(goal.group);
 
-  if (!group || !group.mentor.equals(userId)) {
+  if (!group) {
+    throw new ApiError(404, "Group not found");
+  }
+
+  const mentorMembership = await GroupMember.findOne({
+    group: group._id,
+    user: userId,
+    role: "mentor",
+  });
+
+  if (!mentorMembership) {
     throw new ApiError(403, "User not authorized to update this goal");
   }
 
@@ -167,23 +246,116 @@ const deleteGoal = asyncHandler(async (req, res) => {
   const { goalId } = req.params;
   const { _id: userId } = req.user;
 
+  if (!mongoose.Types.ObjectId.isValid(goalId)) {
+    throw new ApiError(400, "Invalid goal ID");
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    throw new ApiError(400, "Invalid user ID");
+  }
+
   const goal = await Goal.findById(goalId);
 
   if (!goal) {
     throw new ApiError(404, "Goal not found");
   }
 
-  const group = await Group.findById(goal.group);
+  const isMentor = await GroupMember.exists({
+    group: goal.group,
+    user: userId,
+    role: "mentor",
+  });
 
-  if (!group || !group.mentor.equals(userId)) {
-    throw new ApiError(403, "User not authorized to delete this goal");
+  if (!isMentor) {
+    throw new ApiError(
+      403,
+      "User not authorized to delete this goal",
+    );
   }
 
-  await goal.deleteOne();
+  const assignments = await Assignment.find({
+    goalId: goal._id,
+  }).select("_id");
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, "Goal deleted successfully"));
+  const assignmentIds = assignments.map(
+    (assignment) => assignment._id,
+  );
+
+  let submissions = [];
+
+  if (assignmentIds.length > 0) {
+    submissions = await Submission.find({
+      assignmentId: {
+        $in: assignmentIds,
+      },
+    }).select("cloudinaryPublicId");
+  }
+
+  const submissionPublicIds = submissions
+    .filter((submission) => submission.cloudinaryPublicId)
+    .map((submission) => submission.cloudinaryPublicId);
+
+  const session = await mongoose.startSession();
+
+  try {
+    session.startTransaction();
+
+    if (assignmentIds.length > 0) {
+      await Submission.deleteMany(
+        {
+          assignmentId: {
+            $in: assignmentIds,
+          },
+        },
+        { session },
+      );
+    }
+
+    await Assignment.deleteMany(
+      {
+        goalId: goal._id,
+      },
+      { session },
+    );
+
+    await Goal.deleteOne(
+      {
+        _id: goal._id,
+      },
+      { session },
+    );
+
+    await session.commitTransaction();
+    try {
+      await Promise.all(
+        submissionPublicIds.map((id) =>
+          cloudinary.uploader.destroy(id, { resource_type: "raw" }),
+        ),
+      );
+    } catch (err) {
+      console.error(
+        "Failed to delete some submission files from Cloudinary:",
+        err,
+      );
+    }
+
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        "Goal and all related data deleted successfully",
+        null,
+      ),
+    );
+  } catch (error) {
+    await session.abortTransaction();
+
+    throw new ApiError(
+      500,
+      error.message || "Failed to delete goal",
+    );
+  } finally {
+    session.endSession();
+  }
 });
 
 export { createGoal, getGoalsByGroup, getMyGoals, updateGoal, deleteGoal };

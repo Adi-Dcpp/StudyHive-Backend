@@ -4,19 +4,43 @@ dotenv.config();
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import mongoose from "mongoose";
 import helmet from "helmet";
 import hpp from "hpp";
 import pino from "pino";
 import pinoHttp from "pino-http";
 import { globalRate } from "./middlewares/rateLimiter.middlewares.js";
+import mongoSanitize from "express-mongo-sanitize";
+import { ApiError } from "./utils/api-error.utils.js";
+import { randomUUID } from "node:crypto";
+import { LoggerPolicy, RequestLimits } from "./utils/constants.utils.js";
 
 const app = express();
 app.set("trust proxy", 1);
 
 //cors config
+
+const allowedOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(",").map(origin => origin.trim())
+  : [];
+
 app.use(
   cors({
-    origin: ["http://localhost:5173"],
+    origin: (origin, callback) => {
+      // allow Postman / curl (no origin)
+      if (!origin) return callback(null, true);
+
+      // In development, allow localhost
+      if (process.env.NODE_ENV === "development" && (origin?.includes("localhost") || origin?.includes("127.0.0.1"))) {
+        return callback(null, true);
+      }
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new ApiError(403, "CORS origin not allowed"));
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "Cache-Control", "Pragma"]
@@ -24,7 +48,11 @@ app.use(
 );
 
 const logger = pino({
-  level: process.env.NODE_ENV === "production" ? "info" : "debug",
+  level:
+    process.env.NODE_ENV === "production"
+      ? LoggerPolicy.PROD_LEVEL
+      : LoggerPolicy.DEV_LEVEL,
+
   transport:
     process.env.NODE_ENV !== "production"
       ? {
@@ -33,19 +61,177 @@ const logger = pino({
             colorize: true,
             translateTime: "HH:MM:ss",
             ignore: "pid,hostname",
+            singleLine: true,
           },
         }
       : undefined,
+
+  redact: {
+    paths: [
+      "req.headers.authorization",
+      "req.headers.cookie",
+      "req.cookies",
+      "req.body.password",
+      "req.body.oldPassword",
+      "req.body.newPassword",
+      "req.body.accessToken",
+      "req.body.refreshToken",
+      "accessToken",
+      "refreshToken",
+    ],
+    censor: "[REDACTED]",
+  },
 });
 
 //basic app config
 app.use(helmet());
-app.use(pinoHttp({ logger }));
-app.use(express.json({ limit: "16kb" }));
-app.use(express.urlencoded({ extended: true, limit: "16kb" }));
+app.use(
+  pinoHttp({
+    logger,
+
+    genReqId: () => randomUUID(),
+
+    customLogLevel: (_req, res, err) => {
+      if (err || res.statusCode >= 500) {
+        return "error";
+      }
+
+      if (res.statusCode >= 400) {
+        return "warn";
+      }
+
+      return "info";
+    },
+
+    serializers: {
+      req(req) {
+        return {
+          id: req.id,
+          method: req.method,
+          url: req.url,
+          userId: req.user?._id || null,
+        };
+      },
+
+      res(res) {
+        return {
+          statusCode: res.statusCode,
+        };
+      },
+
+      err(err) {
+        return {
+          type: err.name,
+          message: err.message,
+
+          ...(process.env.NODE_ENV === "development"
+            ? { stack: err.stack }
+            : {}),
+        };
+      },
+    },
+
+    customSuccessMessage: (req, res) =>
+      `${res.statusCode} ${req.method} ${req.url}`,
+
+    customErrorMessage: (req, res, err) =>
+      `${res.statusCode} ${req.method} ${req.url} - ${err?.message || "Request failed"}`,
+  }),
+);
+app.use(hpp()); // no duplicate query params
+app.use(express.json({ limit: RequestLimits.JSON_BODY_LIMIT }));
+app.use(express.urlencoded({ extended: true, limit: RequestLimits.URLENCODED_BODY_LIMIT }));
+app.use((req, _res, next) => {
+  try {
+    if (req.body && typeof req.body === "object") {
+      mongoSanitize.sanitize(req.body);
+    }
+
+    if (req.params && typeof req.params === "object") {
+      mongoSanitize.sanitize(req.params);
+    }
+
+    if (req.query && typeof req.query === "object") {
+      mongoSanitize.sanitize(req.query);
+    }
+
+    next();
+  } catch (_error) {
+    next(new ApiError(400, "Invalid request payload"));
+  }
+}); // Remove $ and . from req.body, req.query, and req.params to prevent NoSQL injection
+// Never expose temp uploads from static hosting.
+app.use("/temp", (_req, _res, next) => {
+  return next(new ApiError(404, "Not found")); // Prevent access to temp uploads
+});
 app.use(express.static("public"));
-app.use(hpp());
 app.use(cookieParser());
+
+// Validate common ObjectId route params (return 400 if invalid)
+const idParamNames = [
+  "id",
+  "groupId",
+  "userId",
+  "assignmentId",
+  "submissionId",
+  "resourceId",
+  "announcementId",
+  "messageId",
+  "notificationId",
+  "goalId",
+];
+
+for (const paramName of idParamNames) {
+  app.param(paramName, (req, _res, next, value) => {
+    if (!value) return next();
+
+    if (!mongoose.Types.ObjectId.isValid(String(value))) {
+      return next(new ApiError(400, `Invalid ${paramName} parameter`));
+    }
+
+    return next();
+  });
+}
+
+const unsafeMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+app.use((req, _res, next) => {
+  if (!unsafeMethods.has(req.method)) {
+    return next();
+  }
+
+  const hasCookieAuth = Boolean(
+    req.cookies?.accessToken || req.cookies?.refreshToken,
+  );
+
+  if (!hasCookieAuth) {
+    return next();
+  }
+
+  // Skip CSRF check in development for tools like Postman/curl
+  if (process.env.NODE_ENV === "development") {
+    return next();
+  }
+
+  const originHeader = req.get("origin");
+  const refererHeader = req.get("referer");
+
+  let requestOrigin = originHeader;
+
+  if (!requestOrigin && refererHeader) {
+    try {
+      requestOrigin = new URL(refererHeader).origin;
+    } catch (_error) {
+      requestOrigin = null;
+    }
+  }
+
+  if (!requestOrigin || !allowedOrigins.includes(requestOrigin)) {
+    return next(new ApiError(403, "CSRF origin not allowed"));
+  }
+
+  return next();
+});
 
 app.use(globalRate);
 
@@ -58,6 +244,11 @@ import submissionRouter from "./routes/submission.routes.js";
 import resourceRouter from "./routes/resource.routes.js";
 import healthcheckRouter from "./routes/healthcheck.routes.js";
 import dashboardRouter from "./routes/dashboard.routes.js";
+import announcementRouter from "./routes/announcement.routes.js";
+import notificationRouter from "./routes/notification.routes.js";
+import adminRouter from "./routes/admin.routes.js";
+import messageRouter from "./routes/message.routes.js";
+import leaderboardRouter from "./routes/leaderboard.routes.js";
 
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/groups", groupRouter);
@@ -67,11 +258,20 @@ app.use("/api/v1/submissions", submissionRouter);
 app.use("/api/v1/resources", resourceRouter);
 app.use("/api/v1/healthcheck", healthcheckRouter);
 app.use("/api/v1/dashboard", dashboardRouter);
+app.use("/api/v1/announcements", announcementRouter);
+app.use("/api/v1/notifications", notificationRouter);
+app.use("/api/v1/admin", adminRouter);
+app.use("/api/v1/messages", messageRouter);
+app.use("/api/v1/leaderboard", leaderboardRouter);
+app.get("/", (req, res) => {
+  res.send("StudyHive backend running");
+});
+
+app.use((req, _res, next) => {
+  return next(new ApiError(404, `Route  ${req.method} ${req.originalUrl} not found`));
+});
 
 app.use(globalErrorHandler);
 
-app.get("/", (req, res) => {
-  res.send("StudyHive backend running 🚀");
-});
 
 export default app;

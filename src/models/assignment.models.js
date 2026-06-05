@@ -45,6 +45,10 @@ const assignmentSchema = new Schema(
       type: Boolean,
       default: true,
     },
+    deadlineReminderSent: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,

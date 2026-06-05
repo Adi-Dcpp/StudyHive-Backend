@@ -25,10 +25,11 @@ const userRegisterValidator = () => {
       ),
     body("email")
       .exists()
+      .trim()
       .withMessage("Email is required")
       .isEmail()
       .withMessage("Invalid email format"),
-    body("role").optional().isIn(["admin", "mentor", "learner"]),
+    body("role").optional().isIn(["mentor", "learner"]).withMessage("Role must be either mentor or learner"),
   ];
 };
 
@@ -36,6 +37,7 @@ const userLoginValidator = () => {
   return [
     body("email")
       .exists()
+      .trim()
       .withMessage("Email is required")
       .isEmail()
       .withMessage("Invalid email format"),
@@ -60,7 +62,7 @@ const emailValidator = () => {
 };
 
 const forgotPasswordValidator = () => [
-  body("email").exists().isEmail().withMessage("Valid email is required"),
+  body("email").exists().trim().isEmail().withMessage("Valid email is required"),
 ];
 
 const resetPasswordValidator = () => [
@@ -103,22 +105,14 @@ const changePasswordValidator = () => {
 
 const refreshTokenValidator = () => {
   return [
-    body("refreshToken")
-      .optional()
-      .isString()
-      .withMessage("Refresh token must be a string"),
-
     cookie("refreshToken")
-      .optional()
+      .exists()
+      .withMessage("Refresh token is required in cookie")
+      .bail()
       .isString()
-      .withMessage("Refresh token must be a string"),
-
-    body().custom((_, { req }) => {
-      if (!req.cookies?.refreshToken && !req.body?.refreshToken) {
-        throw new Error("Refresh token is required");
-      }
-      return true;
-    }),
+      .withMessage("Refresh token must be a string")
+      .notEmpty()
+      .withMessage("Refresh token cannot be empty"),
   ];
 };
 

@@ -8,7 +8,27 @@ import {
   forgotPasswordMailgenContent,
 } from "../utils/mail-template.utils.js";
 import jwt from "jsonwebtoken";
-import crypto from "crypto";
+import crypto from "node:crypto";
+import { TokenDefaults } from "../utils/constants.utils.js";
+
+const trustedFrontendOrigins = (process.env.CORS_ORIGIN || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const getTrustedRedirectBase = (rawUrl) => {
+  if (!rawUrl) {
+    throw new ApiError(500, "Frontend redirect URL is not configured");
+  }
+
+  const parsedUrl = new URL(rawUrl);
+
+  if (!trustedFrontendOrigins.includes(parsedUrl.origin)) {
+    throw new ApiError(500, "Frontend redirect URL is not trusted");
+  }
+
+  return `${parsedUrl.origin}${parsedUrl.pathname.replace(/\/$/, "")}`;
+};
 
 const isProd = process.env.NODE_ENV === "production";
 
@@ -16,7 +36,14 @@ const refreshTokenCookieOptions = {
   httpOnly: true,
   secure: isProd,
   sameSite: isProd ? "none" : "lax",
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  maxAge: TokenDefaults.REFRESH_COOKIE_MAX_AGE_MS,
+};
+
+const accessTokenCookieOptions = {
+  httpOnly: true,
+  secure: isProd,
+  sameSite: isProd ? "none" : "lax",
+  maxAge: TokenDefaults.ACCESS_COOKIE_MAX_AGE_MS,
 };
 
 const generateRefreshAndAccessToken = async (userId) => {
@@ -29,26 +56,40 @@ const generateRefreshAndAccessToken = async (userId) => {
     const refreshToken = user.generateRefreshToken();
     const accessToken = user.generateAccessToken();
 
-    user.refreshToken = refreshToken;
+    const hashedRefreshToken = crypto
+      .createHash("sha256")
+      .update(refreshToken)
+      .digest("hex");
+
+    user.refreshToken = hashedRefreshToken;
     await user.save({ validateBeforeSave: false });
 
-    return { refreshToken, accessToken };
+    return { refreshToken, accessToken }; // Return unhashed token to client
   } catch (error) {
     throw new ApiError(500, error.message || "Token generation failed");
   }
 };
 
 const registerUser = asyncHandler(async (req, res) => {
-  const { name, email, password, role } = req.body;
+  const { name, email, password } = req.body;
+  let { role } = req.body;
 
   if (!name || !email || !password) {
     throw new ApiError(400, "All fields are required");
   }
 
+  if (!role) {
+    role = "learner";
+  }
+
+  if (role === "admin") {
+    throw new ApiError(400, "Invalid role");
+  }
+
   const normalizedEmail = email.toLowerCase();
 
   const isUserExist = await User.findOne({
-    $or: [{ email: normalizedEmail }, { name }],
+    $or: [{ email: normalizedEmail }],
   });
 
   if (isUserExist) {
@@ -101,11 +142,10 @@ const registerUser = asyncHandler(async (req, res) => {
 
 const verifyEmail = asyncHandler(async (req, res) => {
   const { token } = req.params;
+  const trustedFrontendBaseUrl = getTrustedRedirectBase(process.env.FRONTEND_URL);
 
   if (!token) {
-    return res.redirect(
-      `${process.env.FRONTEND_URL}/email-verified?status=failed`,
-    );
+    return res.redirect(`${trustedFrontendBaseUrl}/email-verified?status=failed`);
   }
 
   const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
@@ -116,9 +156,7 @@ const verifyEmail = asyncHandler(async (req, res) => {
   });
 
   if (!user) {
-    return res.redirect(
-      `${process.env.FRONTEND_URL}/email-verified?status=failed`,
-    );
+    return res.redirect(`${trustedFrontendBaseUrl}/email-verified?status=failed`);
   }
 
   user.emailVerificationToken = undefined;
@@ -129,63 +167,48 @@ const verifyEmail = asyncHandler(async (req, res) => {
 
   await user.save({ validateBeforeSave: false });
 
-  return res.redirect(
-    `${process.env.FRONTEND_URL}/email-verified?status=success`,
-  );
-  // return res.status(200).json(
-  //   new ApiResponse(200, "Email verified successfully", {
-  //     isEmailVerified: true,
-  //   }),
-  // );
+  return res.redirect(`${trustedFrontendBaseUrl}/email-verified?status=success`);
 });
 
 const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
-    throw new ApiError(400, "All field required");
+    throw new ApiError(400, "All fields are required");
   }
 
   const normalizedEmail = email.toLowerCase();
 
-  const user = await User.findOne({ email: normalizedEmail }).select(
-    "+password",
-  );
+  const user = await User.findOne({ email: normalizedEmail }).select("+password");
 
-  if (!user) {
-    throw new ApiError(404, "User not found");
+  if (!user || !(await user.isPasswordCorrect(password))) {
+    throw new ApiError(401, "Invalid Credentials");
+  }
+
+  if (user.isSuspended) {
+    throw new ApiError(403, "Account is suspended. Contact support.");
   }
 
   if (!user.isEmailVerified) {
     throw new ApiError(403, "Please verify your email before logging in");
   }
 
-  const isPasswordValid = await user.isPasswordCorrect(password);
+  const { refreshToken, accessToken } = await generateRefreshAndAccessToken(user._id);
 
-  if (!isPasswordValid) {
-    throw new ApiError(400, "Password is incorrect");
-  }
-
-  const { refreshToken, accessToken } = await generateRefreshAndAccessToken(
-    user._id,
-  );
-
-  const loggedInUser = await User.findById(user._id).select(
-    "-password -refreshToken -emailVerificationToken -emailVerificationTokenExpiry",
-  );
-
-  if (!loggedInUser) {
-    throw new ApiError(400, "failed to login");
-  }
+  const loggedInUser = user.toObject();
+  delete loggedInUser.password;
+  delete loggedInUser.refreshToken;
+  delete loggedInUser.emailVerificationToken;
+  delete loggedInUser.emailVerificationTokenExpiry;
 
   return res
     .status(200)
     .cookie("refreshToken", refreshToken, refreshTokenCookieOptions)
+    .cookie("accessToken", accessToken, accessTokenCookieOptions)
     .json(
       new ApiResponse(200, "User successfully logged In", {
         user: loggedInUser,
-        accessToken,
-      }),
+      })
     );
 });
 
@@ -230,15 +253,14 @@ const logOut = asyncHandler(async (req, res) => {
 
   return res
     .clearCookie("refreshToken", refreshTokenCookieOptions)
+    .clearCookie("accessToken", accessTokenCookieOptions)
     .status(200)
     .json(new ApiResponse(200, "User logged out successfully", {}));
 });
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
-  const incomingRefreshToken =
-    req.cookies?.refreshToken ||
-    req.body?.refreshToken ||
-    req.headers["x-refresh-token"];
+  // Accept refresh token from cookie ONLY (not from body or headers)
+  const incomingRefreshToken = req.cookies?.refreshToken;
 
   if (!incomingRefreshToken) {
     throw new ApiError(401, "Unauthorized access");
@@ -261,8 +283,13 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     throw new ApiError(401, "Invalid refresh token");
   }
 
-  if (user.refreshToken !== incomingRefreshToken) {
-    throw new ApiError(401, "Refresh token expired or reused");
+  const hashedIncomingToken = crypto
+    .createHash("sha256")
+    .update(incomingRefreshToken)
+    .digest("hex");
+
+  if (user.refreshToken !== hashedIncomingToken) {
+    throw new ApiError(401, "Refresh token reuse detected");
   }
 
   const { refreshToken: newRefreshToken, accessToken } =
@@ -271,6 +298,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .cookie("refreshToken", newRefreshToken, refreshTokenCookieOptions)
+    .cookie("accessToken", accessToken, accessTokenCookieOptions)
     .json(
       new ApiResponse(200, "Access token successfully refreshed", {
         accessToken,
@@ -339,6 +367,9 @@ const resendEmailVerification = asyncHandler(async (req, res) => {
 
 const forgotPasswordRequest = asyncHandler(async (req, res) => {
   const { email } = req.body;
+  const trustedForgotPasswordBaseUrl = getTrustedRedirectBase(
+    process.env.FORGOT_PASSWORD_REDIRECT_URL,
+  );
 
   const normalizedEmail = email.toLowerCase();
 
@@ -369,7 +400,7 @@ const forgotPasswordRequest = asyncHandler(async (req, res) => {
     subject: "Reset Password",
     mailgenContent: forgotPasswordMailgenContent(
       user.name,
-      `${process.env.FORGOT_PASSWORD_REDIRECT_URL}/${unHashedToken}`,
+      `${trustedForgotPasswordBaseUrl}/${unHashedToken}`,
     ),
   });
 
@@ -408,6 +439,7 @@ const resetForgotPassword = asyncHandler(async (req, res) => {
 
   return res
     .clearCookie("refreshToken", refreshTokenCookieOptions)
+    .clearCookie("accessToken", accessTokenCookieOptions)
     .status(200)
     .json(new ApiResponse(200, "Password reset Successfully", {}));
 });
@@ -436,8 +468,31 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
   await user.save({ validateBeforeSave: false });
 
   return res
+    .clearCookie("refreshToken", refreshTokenCookieOptions)
     .status(200)
     .json(new ApiResponse(200, "Password Changed Successfully", {}));
+});
+
+const updatePassword = asyncHandler(async (req, res) => {
+  const { newPassword } = req.body;
+  const user = await User.findById(req.user._id).select("+password");
+
+  if (!newPassword) {
+    throw new ApiError(400, "New password is required");
+  }
+
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  user.password = newPassword;
+  user.refreshToken = undefined;
+
+  await user.save({ validateBeforeSave: false });
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Password updated successfully", {}));
 });
 
 export {
@@ -450,5 +505,6 @@ export {
   resendEmailVerification,
   forgotPasswordRequest,
   resetForgotPassword,
+  updatePassword,
   changeCurrentPassword,
 };

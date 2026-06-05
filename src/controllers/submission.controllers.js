@@ -7,6 +7,8 @@ import { Submission } from "../models/submission.models.js";
 import { GroupMember } from "../models/groupMember.models.js";
 import { uploadToCloudinary } from "../utils/cloudinary.utils.js";
 import { v2 as cloudinary } from "cloudinary";
+import { getPaginatedData } from "../utils/pagination.utils.js";
+import { createNotification } from "../services/notification.services.js";
 
 const submitAssignment = asyncHandler(async (req, res) => {
   const { assignmentId } = req.params;
@@ -49,13 +51,17 @@ const submitAssignment = asyncHandler(async (req, res) => {
 
   let fileUrl;
   let cloudinaryPublicId;
+  let previousCloudinaryPublicId;
 
-  if (submission && req.file && submission.cloudinaryPublicId) {
-    await cloudinary.uploader.destroy(submission.cloudinaryPublicId);
+  if (submission && req.file) {
+    previousCloudinaryPublicId = submission.cloudinaryPublicId;
   }
 
   if (req.file) {
-    const uploadResult = await uploadToCloudinary(req.file.path,req.file.mimetype);
+    const uploadResult = await uploadToCloudinary(
+      req.file.path,
+      req.file.mimetype,
+    );
     fileUrl = uploadResult.secureUrl;
     cloudinaryPublicId = uploadResult.publicId;
   }
@@ -78,6 +84,18 @@ const submitAssignment = asyncHandler(async (req, res) => {
     submission.status = "submitted";
     submission.submittedAt = new Date();
     await submission.save();
+
+    if (
+      previousCloudinaryPublicId &&
+      cloudinaryPublicId &&
+      previousCloudinaryPublicId !== cloudinaryPublicId
+    ) {
+      try {
+        await cloudinary.uploader.destroy(previousCloudinaryPublicId);
+      } catch (_error) {
+        // Do not fail submission after successful save because old file cleanup failed.
+      }
+    }
   }
 
   return res.status(201).json(
@@ -113,20 +131,59 @@ const reviewSubmission = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Assignment not found or inactive");
   }
 
-  const group = await Group.findById(assignment.groupId);
+  if (marksObtained !== undefined) {
+    const numericMarksObtained = Number(marksObtained);
 
-  if (!group || !group.mentor.equals(userId)) {
+    if (
+      Number.isNaN(numericMarksObtained) ||
+      numericMarksObtained < 0 ||
+      (assignment.maxMarks !== undefined && numericMarksObtained > assignment.maxMarks)
+    ) {
+      throw new ApiError(400, "marksObtained must be between 0 and assignment maxMarks");
+    }
+
+    submission.marksObtained = numericMarksObtained;
+  }
+
+  const mentorMembership = await GroupMember.findOne({
+    group: assignment.groupId,
+    user: userId,
+    role: "mentor",
+  });
+
+  if (!mentorMembership) {
     throw new ApiError(403, "User not authorized to review this submission");
   }
 
   submission.status = status;
   submission.feedback = feedback ?? submission.feedback;
-  submission.marksObtained =
-    marksObtained !== undefined ? marksObtained : submission.marksObtained;
   submission.reviewedAt = new Date();
 
   await submission.save();
 
+  try {
+    await createNotification({
+      recipient: submission.userId,
+      type: status === "reviewed" ? "submission_reviewed" : "revision_required",
+
+      title:
+        status === "reviewed" ? "Submission Reviewed" : "Revision Required",
+
+      body:
+        status === "reviewed"
+          ? `Your submission for "${assignment.title}" has been reviewed.`
+          : `Your mentor requested revisions for "${assignment.title}".`,
+
+      refId: submission._id,
+      refModel: "Submission",
+    });
+  } catch (error) {
+    console.error(
+      "Failed to create notification after reviewing submission:",
+      error,
+    );
+    // Do not fail the review process if notification creation fails.
+  }
   return res.status(200).json(
     new ApiResponse(200, "Submission reviewed successfully", {
       submissionId: submission._id,
@@ -140,30 +197,88 @@ const getSubmissionsByAssignment = asyncHandler(async (req, res) => {
   const { assignmentId } = req.params;
   const { _id: userId } = req.user;
 
-  const assignment = await Assignment.findById(assignmentId);
+  const query = { assignmentId };
 
-  if (!assignment || !assignment.isActive) {
+  const assignment = await Assignment.findOne({
+    _id: assignmentId,
+    isActive: true,
+  }).select("groupId");
+
+  if (!assignment) {
     throw new ApiError(404, "Assignment not found or inactive");
   }
 
-  const group = await Group.findById(assignment.groupId);
+  const isMentor = await GroupMember.exists({
+    group: assignment.groupId,
+    user: userId,
+    role: "mentor",
+  });
 
-  if (!group || !group.mentor.equals(userId)) {
+  if (!isMentor) {
     throw new ApiError(403, "User not authorized to view submissions");
   }
 
-  const submissions = await Submission.find({
-    assignmentId,
-  })
+  const total = await Submission.countDocuments(query);
+
+  const { skip, limit, pagination } = getPaginatedData({
+    query: req.query,
+    total,
+  });
+
+  if (!total) {
+    return res.status(200).json(
+      new ApiResponse(200, "No submission found", {
+        submissions: [],
+        pagination,
+      }),
+    );
+  }
+
+  const submissions = await Submission.find(query)
     .populate("userId", "name email")
     .select("userId status submittedAt reviewedAt marksObtained feedback")
-    .sort({ submittedAt: -1 });
+    .sort({ submittedAt: -1 })
+    .skip(skip)
+    .limit(limit)
+    .lean();
 
   return res.status(200).json(
     new ApiResponse(200, "Submissions fetched successfully", {
-      count: submissions.length,
       submissions,
+      pagination,
     }),
   );
 });
-export { submitAssignment, reviewSubmission, getSubmissionsByAssignment };
+
+const getMySubmission = asyncHandler(async (req, res) => {
+  const { assignmentId } = req.params;
+  const userId = req.user._id;
+
+  if (!mongoose.Types.ObjectId.isValid(assignmentId)) {
+    throw new ApiError(400, "Invalid assignment ID");
+  }
+
+  if (req.user.role !== "learner") {
+    throw new ApiError(403, "Only learners can access submissions");
+  }
+
+  const submission = await Submission.findOne({
+    assignmentId,
+    userId,
+  });
+
+  if (!submission) {
+    throw new ApiError(404, "Submission not found");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Submission fetched successfully", submission));
+});
+
+export {
+  submitAssignment,
+  reviewSubmission,
+  getSubmissionsByAssignment,
+  getMySubmission,
+};

@@ -1,34 +1,52 @@
-import { v2 as cloudinary } from "cloudinary";
-import fs from "fs";
+import { v2 as cloudinary } from 'cloudinary'
+import fs from 'fs'
+import { ApiError } from './api-error.utils.js'
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+})
 
 const uploadToCloudinary = async (localFilePath, mimetype) => {
   try {
-    const resourceType =
-      mimetype && mimetype.startsWith("image/") ? "image" : "raw";
+    if (!localFilePath) {
+      throw new ApiError(400, 'File path is missing')
+    }
+
+    const resourceType = mimetype?.startsWith('image/')
+      ? 'image'
+      : 'raw'
 
     const result = await cloudinary.uploader.upload(localFilePath, {
-      folder: "studyhive",
+      folder: 'studyhive',
       resource_type: resourceType,
-    });
+      access_mode: 'public',
+    })
 
-    fs.unlinkSync(localFilePath);
+    if (fs.existsSync(localFilePath)) {
+      fs.unlinkSync(localFilePath)
+    }
 
     return {
       secureUrl: result.secure_url,
       publicId: result.public_id,
-    };
-  } catch (error) {
-    if (fs.existsSync(localFilePath)) {
-      fs.unlinkSync(localFilePath);
+      resourceType: result.resource_type,
     }
-    throw error;
-  }
-};
+  } catch (error) {
+    if (localFilePath && fs.existsSync(localFilePath)) {
+      await fs.promises.unlink(localFilePath)
+    }
 
-export { uploadToCloudinary };
+    if (error instanceof ApiError) {
+      throw error
+    }
+
+    throw new ApiError(
+      502,
+      error?.message || 'Cloudinary upload failed',
+    )
+  }
+}
+
+export { uploadToCloudinary }

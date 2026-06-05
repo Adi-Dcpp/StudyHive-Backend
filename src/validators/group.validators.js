@@ -1,4 +1,5 @@
 import pkg from "express-validator";
+import { mongo } from "mongoose";
 const { body, param } = pkg;
 
 const mongoIdParam = (fieldName = "id") =>
@@ -73,6 +74,14 @@ const removeGroupMembersValidator = () => [
   mongoIdParam("userId"),
 ];
 
+const leaveGroupValidator = () => [
+  mongoIdParam("groupId"),
+];
+
+const regenerateInviteCodeValidator = () => [
+  mongoIdParam("groupId"),
+];
+
 export {
   createGroupValidator,
   joinGroupValidator,
@@ -82,4 +91,6 @@ export {
   inviteMembersValidator,
   viewGroupMembersValidator,
   removeGroupMembersValidator,
+  leaveGroupValidator,
+  regenerateInviteCodeValidator
 };

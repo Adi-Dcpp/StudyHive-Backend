@@ -3,12 +3,14 @@ import {
   submitAssignment,
   reviewSubmission,
   getSubmissionsByAssignment,
+  getMySubmission,
 } from "../controllers/submission.controllers.js";
 
 import {
   submitAssignmentValidator,
   reviewSubmissionValidator,
   getSubmissionsByAssignmentValidator,
+  getMySubmissionValidator
 } from "../validators/submission.validators.js";
 
 import { upload } from "../middlewares/multer.middlewares.js";
@@ -29,7 +31,7 @@ router.post(
 );
 
 router.put(
-  "/submissions/:submissionId/review",
+  "/:submissionId/review",
   verifyJwt,
   authorizeRoles("mentor"),
   reviewSubmissionValidator,
@@ -38,12 +40,21 @@ router.put(
 );
 
 router.get(
-  "/assignments/:assignmentId/submissions",
+  "/assignments/:assignmentId",
   verifyJwt,
   authorizeRoles("mentor"),
   getSubmissionsByAssignmentValidator,
   validate,
   getSubmissionsByAssignment
+);
+
+router.get(
+  "/assignments/:assignmentId/my-submission",
+  verifyJwt,
+  authorizeRoles("learner"),
+  getMySubmissionValidator,
+  validate,
+  getMySubmission,
 );
 
 export default router;

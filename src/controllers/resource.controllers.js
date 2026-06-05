@@ -6,6 +6,7 @@ import { GroupMember } from "../models/groupMember.models.js";
 import { uploadToCloudinary } from "../utils/cloudinary.utils.js";
 import { Resource } from "../models/resource.models.js";
 import { v2 as cloudinary } from "cloudinary";
+import { getPaginatedData } from "../utils/pagination.utils.js";
 
 const uploadResource = asyncHandler(async (req, res) => {
   const { groupId } = req.params;
@@ -16,25 +17,44 @@ const uploadResource = asyncHandler(async (req, res) => {
     throw new ApiError(400, "All required fields must be present");
   }
 
+  const existingResource = await Resource.findOne({
+    group: groupId,
+    title,
+  })
+
+  if (existingResource) {
+    throw new ApiError(400, "A resource with the same title already exists in this group");
+  }
+
   const group = await Group.findById(groupId);
   if (!group) {
     throw new ApiError(404, "Group not found");
   }
 
-  if (!group.mentor.equals(userId)) {
+  const mentorMembership = await GroupMember.findOne({
+    group: groupId,
+    user: userId,
+    role: "mentor",
+  });
+
+  if (!mentorMembership) {
     throw new ApiError(403, "User not authorized");
   }
 
   let fileUrl;
   let cloudinaryPublicId;
+  let fileName;
+  let fileSize;
 
   if (type === "file") {
     if (!req.file) {
       throw new ApiError(400, "File is required for file type resource");
     }
-    const uploadResult = await uploadToCloudinary(req.file.path,req.file.mimetype);
+    const uploadResult = await uploadToCloudinary(req.file.path, req.file.mimetype);
     fileUrl = uploadResult.secureUrl;
     cloudinaryPublicId = uploadResult.publicId;
+    fileName = req.file.originalname;
+    fileSize = req.file.size;
   }
 
   if (type === "link" && !linkUrl) {
@@ -53,6 +73,8 @@ const uploadResource = asyncHandler(async (req, res) => {
     uploadedBy: userId,
     linkUrl,
     fileUrl,
+    fileName,
+    fileSize,
     cloudinaryPublicId,
   });
 
@@ -63,6 +85,9 @@ const uploadResource = asyncHandler(async (req, res) => {
       type: resource.type,
       uploadedBy: resource.uploadedBy,
       createdAt: resource.createdAt,
+      fileUrl: resource.fileUrl,
+      fileName: resource.fileName,
+      fileSize: resource.fileSize,
     }),
   );
 });
@@ -71,12 +96,12 @@ const getResourceByGroup = asyncHandler(async (req, res) => {
   const { groupId } = req.params;
   const { _id: userId } = req.user;
 
-  const group = await Group.findById(groupId);
-  if (!group) {
+  const groupExists = await Group.exists({ _id: groupId });
+  if (!groupExists) {
     throw new ApiError(404, "Group not found");
   }
 
-  const isMember = await GroupMember.findOne({
+  const isMember = await GroupMember.exists({
     group: groupId,
     user: userId,
   });
@@ -87,9 +112,9 @@ const getResourceByGroup = asyncHandler(async (req, res) => {
 
   const { sortBy = "recent", type } = req.query;
 
-  const filter = { group: groupId };
+  const query = { group: groupId };
   if (type) {
-    filter.type = type;
+    query.type = type;
   }
 
   let sortOption = { createdAt: -1 };
@@ -100,13 +125,35 @@ const getResourceByGroup = asyncHandler(async (req, res) => {
     sortOption = { title: 1 };
   }
 
-  const resources = await Resource.find(filter)
-    .sort(sortOption)
-    .populate("uploadedBy", "name email");
+  const total = await Resource.countDocuments(query);
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, "Resources fetched successfully", resources));
+  const { skip, limit, pagination } = getPaginatedData({
+    query: req.query,
+    total,
+  });
+
+  if (!total) {
+    return res.status(200).json(
+      new ApiResponse(200, "No resources found", {
+        resources: [],
+        pagination,
+      })
+    );
+  }
+
+  const resources = await Resource.find(query)
+    .sort(sortOption)
+    .populate("uploadedBy", "name email")
+    .skip(skip)
+    .limit(limit)
+    .lean();
+
+  return res.status(200).json(
+    new ApiResponse(200, "Resources fetched successfully", {
+      resources,
+      pagination,
+    })
+  );
 });
 
 const deleteResource = asyncHandler(async (req, res) => {

@@ -2,8 +2,13 @@ import Mailgen from "mailgen";
 import nodemailer from "nodemailer";
 import { ApiError } from "./api-error.utils.js";
 import axios from "axios";
+import pino from "pino";
+import { LoggerPolicy } from "./constants.utils.js";
 
 const isProd = process.env.NODE_ENV === "production";
+const logger = pino({
+  level: isProd ? LoggerPolicy.PROD_LEVEL : LoggerPolicy.DEV_LEVEL,
+});
 
 const mailGenerator = new Mailgen({
   theme: "default",
@@ -59,7 +64,10 @@ const sendEmail = async ({ email, subject, mailgenContent }) => {
       );
     }
   } catch (error) {
-    console.error("Email Error:", error.response?.data || error.message);
+    logger.error(
+      { err: error, response: error.response?.data || null },
+      `Email send failed: ${error.message}`,
+    );
     throw new ApiError(500, "Email service failed");
   }
 };
