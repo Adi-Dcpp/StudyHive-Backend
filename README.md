@@ -37,11 +37,7 @@
 
 ## 🎥 Demo Video
 
-https://github.com/user-attachments/assets/your-video-id
-
-Or click below:
-
-[Watch Demo Video](https://github.com/user-attachments/assets/your-video-id)
+[Watch Demo Video](https://drive.google.com/file/d/1YQtmtUrsksFfZh7pja_TGxAtVxtVvlDO/view?usp=drivesdk)
 
 ---
 
@@ -689,4 +685,4 @@ npm run format     # Format with Prettier
 
 ---
 
-StudyHive Backend - Built for scalable, collaborative learning.  
+StudyHive Backend - Built for scalable, collaborative learning
