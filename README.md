@@ -22,6 +22,29 @@
 
 ---
 
+## 🚀 Live Demo
+
+🔗 **App:** https://studyhive-web.vercel.app/
+## 📂 Repositories
+
+### Frontend
+🔗 https://github.com/Adi-Dcpp/StudyHive-Frontend
+
+### Backend
+🔗 https://github.com/Adi-Dcpp/StudyHive-Backend
+
+---
+
+## 🎥 Demo Video
+
+https://github.com/user-attachments/assets/your-video-id
+
+Or click below:
+
+[Watch Demo Video](https://github.com/user-attachments/assets/your-video-id)
+
+---
+
 ## Project Insight ✨
 
 StudyHive Backend is built to support a full academic workflow: mentors create groups, define learning goals, publish assignments, and review submissions; learners track goals, submit work, and access shared resources. The system enforces roles, validates every request, stores uploads in Cloudinary, and delivers consistent API responses.
@@ -68,7 +91,8 @@ Key outcomes this API enables:
 - Pagination helpers for list endpoints
 - Centralized error handling with consistent API responses
 - Healthcheck endpoint for uptime monitoring
-- Admin tools for moderation and platform stats
+- Admin tools for moderation and platform stat
+- Cron Job for Notification 
 
 ### Why It Stands Out 🌟
 
@@ -206,6 +230,8 @@ http://localhost:<PORT>/api/v1
 | POST   | /forgot-password                | Request a password reset email |
 | POST   | /reset-password/:token          | Reset password by token |
 | POST   | /change-password                | Change password (protected) |
+| POST   | /refresh-token               | Refresh Access Token |
+| POST   | /update-password                | Update Password(logged In) |
 
 ### Groups (`/groups`)
 
@@ -220,6 +246,9 @@ http://localhost:<PORT>/api/v1
 | POST   | /:groupId/invite                | Invite member to group |
 | GET    | /:groupId/members               | List group members |
 | DELETE | /:groupId/members/:userId       | Remove member from group |
+| POST | /:groupId/leave     | Leave a group |
+| PATCH | /:groupId/invite/regenerate       | Regenerate inviteCode |
+
 
 ### Goals (`/goals`)
 
@@ -247,6 +276,7 @@ http://localhost:<PORT>/api/v1
 | POST   | /assignments/:assignmentId/submit | Submit assignment (learner) |
 | PUT    | /submissions/:submissionId/review | Review submission (mentor) |
 | GET    | /assignments/:assignmentId/submissions | List submissions for assignment (mentor) |
+| GET    | /assignments/:assignmentId/my-submission          | Get Submission |
 
 ### Resources (`/resources`)
 
@@ -262,6 +292,7 @@ http://localhost:<PORT>/api/v1
 | ------ | ------------------------------- | ------- |
 | POST   | /:groupId                       | Create announcement (mentor/admin) |
 | GET    | /:groupId                       | List group announcements |
+| PUT    | /:announcementId          | Update announcement |
 | DELETE | /:announcementId                | Delete announcement |
 
 ### Messages (`/messages`)
@@ -270,13 +301,15 @@ http://localhost:<PORT>/api/v1
 | ------ | ------------------------------- | ------- |
 | POST   | /:groupId                       | Send message to group |
 | GET    | /:groupId                       | List messages in group |
+| DELETE    | /:messageId          | Delete any message |
 
 ### Notifications (`/notifications`)
 
 | Method | Route                           | Purpose |
 | ------ | ------------------------------- | ------- |
 | GET    | /                               | List notifications for current user |
-| PUT    | /:notificationId/read           | Mark notification as read |
+| PUT    | /clear-all          | Clear all notifications |
+| PUT    | /:id           | Mark any notification as read |
 
 ### Leaderboard (`/leaderboard`)
 
@@ -523,7 +556,7 @@ StudyHive-Backend/
 │   ├── prd.md
 │   ├── STUDYHIVE_2.0_MASTER_CHECKLIST.md
 │   └── STUDYHIVE_2.0_PRD.md
-├── postman/                            # Postman collections + fixtures
+├── postman/                            # Postman collections + fixtures (AI Generated Scripts)
 │   ├── generate-collection.js
 │   ├── StudyHive-API.comprehensive.postman_collection.json
 │   ├── StudyHive.postman_environment.json
@@ -588,7 +621,7 @@ StudyHive-Backend/
 │   │   ├── notification.routes.js
 │   │   ├── resource.routes.js
 │   │   └── submission.routes.js
-│   ├── scripts/
+│   ├── scripts/                         #AI generated DB seeding scripts
 │   │   ├── seed-data.js
 │   │   └── seed.js
 │   ├── services/
@@ -656,4 +689,4 @@ npm run format     # Format with Prettier
 
 ---
 
-StudyHive Backend - Built for scalable, collaborative learning.
+StudyHive Backend - Built for scalable, collaborative learning.  
